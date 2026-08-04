@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "chromeleon"
+version = "0.1.0"
+description = "Client for driving the Chromeleon browser from Playwright, Selenium or raw CDP"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "Proprietary" }
+authors = [{ name = "TrueCrawl" }]
+keywords = ["chromeleon", "playwright", "cdp", "proxy", "automation"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Developers",
+  "License :: Other/Proprietary License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Topic :: Internet :: WWW/HTTP :: Browsers",
+  "Topic :: Software Development :: Testing",
+]
+# No runtime dependencies on purpose: the library never imports a driver, so it
+# does not force a Playwright version on you or conflict with the one you have.
+dependencies = []
+
+[project.optional-dependencies]
+playwright = ["playwright>=1.40"]
+
+[project.urls]
+Homepage = "https://chromeleon.dev"
+Documentation = "https://chromeleon.dev/docs"
+
+[tool.setuptools]
+packages = ["chromeleon"]
