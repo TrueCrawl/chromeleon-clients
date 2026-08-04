@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "Client for driving the Chromeleon browser from Playwright, Selenium or raw CDP"
 readme = "README.md"
 requires-python = ">=3.9"
-license = { text = "Proprietary" }
+license = { text = "LicenseRef-Chromeleon-Source-Available" }
 authors = [{ name = "TrueCrawl" }]
 keywords = ["chromeleon", "playwright", "cdp", "proxy", "automation"]
 classifiers = [
