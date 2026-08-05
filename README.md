@@ -36,6 +36,17 @@ this one. A contract test there pins them against these clients' constants, so
 renaming either fails the browser build rather than silently breaking proxies in
 a customer's session.
 
+## Installing
+
+```
+pip install chromeleon          # python/
+npm install chromeleon          # node/
+```
+
+Both packages implement the same handshake and are held to it by
+`HANDSHAKE.md`. The Node client is fully async, because every driver it wraps
+is; the Python one ships both a sync and an async entry point.
+
 ## Releasing the Python client
 
 `publish-python.yml` uploads `python/` to PyPI through Trusted Publishing, so no
@@ -51,3 +62,18 @@ an ordinary publisher once that upload lands.
 Then run the workflow, or push a `python-v<version>` tag — the build refuses to
 publish if the tag and the built version disagree, because a version number on
 PyPI can never be reused, even after a release is yanked.
+
+## Releasing the Node client
+
+`publish-node.yml` publishes `node/` to npm with Trusted Publishing, the same
+tokenless mechanism as the Python workflow.
+
+npm differs from PyPI in one way that matters: there is no "pending publisher",
+so a trusted publisher can only be attached to a package that already exists.
+The first publish of a new name is therefore manual and token-authenticated;
+afterwards, attach this workflow at npmjs.com -> the package -> Settings ->
+Trusted Publisher, and no credential is needed again.
+
+Release with a `node-v<version>` tag. As with Python, the build refuses to
+publish when the tag and `package.json` disagree — npm versions are immutable
+and cannot be reused.

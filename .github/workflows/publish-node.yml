@@ -1,0 +1,71 @@
+name: publish-node
+
+# Publishes node/ to npm using Trusted Publishing (OIDC): npm verifies a
+# short-lived token GitHub mints for this repository and this workflow file, so
+# no NPM_TOKEN is stored here.
+#
+# ⚠️ npm, unlike PyPI, has no "pending publisher" concept — a trusted publisher
+# can only be attached to a package that ALREADY EXISTS. So the very first
+# publish of a new package name is necessarily manual, with a token, from a
+# workstation. After that: npmjs.com -> the package -> Settings -> Trusted
+# Publisher -> this repo + publish-node.yml, and every later release runs here
+# with no credential at all.
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "node-v*"
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: node
+    # OIDC is the whole mechanism; without this npm has nothing to verify.
+    permissions:
+      id-token: write
+    environment:
+      name: npm
+      url: https://www.npmjs.com/package/chromeleon
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "22"
+          registry-url: https://registry.npmjs.org
+
+      # Trusted publishing landed in npm 11.5.1; the npm bundled with setup-node
+      # is older, and an older client silently falls back to looking for a token
+      # rather than telling you OIDC is unavailable.
+      - name: Install an npm that supports OIDC
+        run: |
+          set -euo pipefail
+          npm install -g npm@latest
+          npm --version
+
+      - run: npm test
+
+      - name: Tag must match the published version
+        if: startsWith(github.ref, 'refs/tags/node-v')
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF_NAME#node-v}"
+          pkg=$(node -p "require('./package.json').version")
+          echo "tag=$tag package=$pkg"
+          [ "$tag" = "$pkg" ] || {
+            echo "tag $GITHUB_REF_NAME does not match package version $pkg" >&2
+            exit 1
+          }
+
+      # npm versions are immutable: unpublishing is restricted and a version
+      # number can never be reused. Fail rather than republish over a re-run.
+      - run: npm publish --access public --provenance

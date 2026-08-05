@@ -1,0 +1,32 @@
+{
+  "name": "chromeleon",
+  "version": "0.1.0",
+  "description": "Client for driving the Chromeleon browser from Playwright, Puppeteer or raw CDP",
+  "keywords": ["chromeleon", "proxy", "cdp", "playwright", "puppeteer", "anti-detect"],
+  "homepage": "https://chromeleon.dev",
+  "repository": { "type": "git", "url": "git+https://github.com/TrueCrawl/chromeleon-clients.git", "directory": "node" },
+  "bugs": { "url": "https://github.com/TrueCrawl/chromeleon-clients/issues" },
+  "license": "SEE LICENSE IN LICENSE",
+  "type": "commonjs",
+  "main": "src/index.js",
+  "types": "src/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.d.ts",
+      "require": "./src/index.js",
+      "import": "./src/index.js"
+    }
+  },
+  "files": ["src", "README.md", "LICENSE"],
+  "engines": { "node": ">=18" },
+  "scripts": {
+    "test": "node --test"
+  },
+  "peerDependencies": {
+    "playwright": ">=1.30.0"
+  },
+  "peerDependenciesMeta": {
+    "playwright": { "optional": true },
+    "puppeteer": { "optional": true }
+  }
+}
