@@ -27,23 +27,43 @@
  *       return send('Target.createBrowserContext', { proxyServer: spec.server });
  *     });
  */
-const core = require('./core');
-const adapters = require('./adapters');
+const {
+  LAUNCH_ARGS,
+  CREDENTIALS_METHOD,
+  ProxySpec,
+  normalizeServer,
+  parseProxy,
+  credentialsParams,
+  checkRegistration,
+  withProxyRegistration,
+} = require('./core');
+const {
+  launch,
+  browserProcessEnv,
+  newProxyContext,
+  newProxyContextPuppeteer,
+  newProxyContextWith,
+} = require('./adapters');
 
+// Destructured into locals and re-exported as shorthand on purpose. Node lets
+// ESM name-import from a CommonJS module only when cjs-module-lexer can detect
+// the export names statically, and it cannot see through member expressions:
+// `module.exports = { launch: adapters.launch }` yields a module whose ONLY
+// usable ESM shape is the default import. Shorthand identifiers are detected.
 module.exports = {
   // core protocol
-  LAUNCH_ARGS: core.LAUNCH_ARGS,
-  CREDENTIALS_METHOD: core.CREDENTIALS_METHOD,
-  ProxySpec: core.ProxySpec,
-  normalizeServer: core.normalizeServer,
-  parseProxy: core.parseProxy,
-  credentialsParams: core.credentialsParams,
-  checkRegistration: core.checkRegistration,
-  withProxyRegistration: core.withProxyRegistration,
+  LAUNCH_ARGS,
+  CREDENTIALS_METHOD,
+  ProxySpec,
+  normalizeServer,
+  parseProxy,
+  credentialsParams,
+  checkRegistration,
+  withProxyRegistration,
   // driver adapters
-  launch: adapters.launch,
-  browserProcessEnv: adapters.browserProcessEnv,
-  newProxyContext: adapters.newProxyContext,
-  newProxyContextPuppeteer: adapters.newProxyContextPuppeteer,
-  newProxyContextWith: adapters.newProxyContextWith,
+  launch,
+  browserProcessEnv,
+  newProxyContext,
+  newProxyContextPuppeteer,
+  newProxyContextWith,
 };
