@@ -35,3 +35,19 @@ The command name and the launch flag are owned by the browser repository, not by
 this one. A contract test there pins them against these clients' constants, so
 renaming either fails the browser build rather than silently breaking proxies in
 a customer's session.
+
+## Releasing the Python client
+
+`publish-python.yml` uploads `python/` to PyPI through Trusted Publishing, so no
+API token is stored in this repository or anywhere else — PyPI verifies a
+short-lived OIDC token minted by GitHub for this exact repo and workflow file.
+
+One-time setup, at https://pypi.org/manage/account/publishing/ — add a *pending*
+publisher (project `chromeleon`, owner `TrueCrawl`, repository
+`chromeleon-clients`, workflow `publish-python.yml`, environment `pypi`). The
+"pending" kind is what allows the first upload to create the project; it becomes
+an ordinary publisher once that upload lands.
+
+Then run the workflow, or push a `python-v<version>` tag — the build refuses to
+publish if the tag and the built version disagree, because a version number on
+PyPI can never be reused, even after a release is yanked.
