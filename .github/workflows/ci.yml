@@ -59,3 +59,18 @@ jobs:
               throw new Error('importing the client pulled in playwright');
             }
           "
+
+          # ESM named imports are a SEPARATE guarantee from require(). Node can
+          # only name-import from CommonJS when cjs-module-lexer detects the
+          # names statically, and it cannot see through member expressions --
+          # `module.exports = { launch: adapters.launch }` leaves the default
+          # import as the only usable ESM shape. 0.1.0 shipped exactly that,
+          # which broke the package's own .mjs example while CJS tests passed.
+          node --input-type=module -e "
+            import { launch, newProxyContext, LAUNCH_ARGS } from 'chromeleon';
+            if (typeof launch !== 'function') throw new Error('ESM: launch missing');
+            if (typeof newProxyContext !== 'function') throw new Error('ESM: newProxyContext missing');
+            if (!Array.isArray(LAUNCH_ARGS)) throw new Error('ESM: LAUNCH_ARGS missing');
+          "
+          # Tooling reads dependency manifests; exports must not make that fatal.
+          node -e "require('chromeleon/package.json')"
