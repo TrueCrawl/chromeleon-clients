@@ -23,3 +23,39 @@ jobs:
       - run: python -c "import chromeleon; assert 'playwright' not in __import__('sys').modules"
       - run: python -m pytest tests -q
       - run: python -m build
+
+  node:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: node
+    strategy:
+      matrix:
+        node: ["18", "22"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - run: npm test
+      # Same promise as the Python job: the package must work with no driver
+      # installed. Checked against the PACKED tarball from a directory that is
+      # not the source tree, because requiring it in place would resolve to the
+      # sources and prove nothing about what users get.
+      - name: Packed tarball imports with no driver present
+        run: |
+          set -euo pipefail
+          tgz="$PWD/$(npm pack --silent)"
+          cd "$RUNNER_TEMP"
+          npm init -y >/dev/null
+          npm install --silent "$tgz"
+          node -e "
+            const c = require('chromeleon');
+            if (!require.resolve('chromeleon').includes('node_modules')) {
+              throw new Error('resolved outside node_modules: ' + require.resolve('chromeleon'));
+            }
+            if (typeof c.newProxyContext !== 'function') throw new Error('missing newProxyContext');
+            if (Object.keys(require.cache).some(k => k.includes('playwright'))) {
+              throw new Error('importing the client pulled in playwright');
+            }
+          "
