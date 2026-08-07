@@ -1,6 +1,6 @@
 {
   "name": "chromeleon",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Client for driving the Chromeleon browser from Playwright, Puppeteer or raw CDP",
   "keywords": [
     "chromeleon",

@@ -16,7 +16,7 @@ chromeleon-clients/
 | language | package | status |
 |---|---|---|
 | [Python](python/) | `pip install chromeleon` | available |
-| [Node / TypeScript](node/) | `npm i chromeleon` | planned |
+| [Node / TypeScript](node/) | `npm i chromeleon` | available |
 | Java, C#, Go, Rust | — | see [the docs](https://chromeleon.dev/docs) for the raw CDP handshake |
 
 Each client lives in its own directory, versions on its own cadence, and
@@ -94,11 +94,12 @@ PyPI can never be reused, even after a release is yanked.
 `publish-node.yml` publishes `node/` to npm with Trusted Publishing, the same
 tokenless mechanism as the Python workflow.
 
-npm differs from PyPI in one way that matters: there is no "pending publisher",
-so a trusted publisher can only be attached to a package that already exists.
-The first publish of a new name is therefore manual and token-authenticated;
-afterwards, attach this workflow at npmjs.com -> the package -> Settings ->
-Trusted Publisher, and no credential is needed again.
+npm differs from PyPI in one way that mattered once: there is no "pending
+publisher", so a trusted publisher can only be attached to a package that
+already exists. The first publish of a new name is therefore manual and
+token-authenticated. That has been done — `chromeleon` exists on npm — so the
+workflow can now be attached at npmjs.com -> the package -> Settings -> Trusted
+Publisher, and no credential is needed again.
 
 Release with a `node-v<version>` tag. As with Python, the build refuses to
 publish when the tag and `package.json` disagree — npm versions are immutable
