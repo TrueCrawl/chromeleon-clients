@@ -80,6 +80,28 @@ with proxy_registration(connection, "http://user:pass@gateway:12321") as spec:
 normalizes the server string the same way Playwright will, so both commands
 agree.
 
+## Captcha solving
+
+Chromeleon has a built-in reCAPTCHA/hCaptcha solver (models embedded in the
+binary). Launch with `captcha=True` and it solves challenges **automatically**;
+watch it over a page CDP session:
+
+```python
+from chromeleon import launch, enable_captcha, CAPTCHA_SOLVED, CAPTCHA_FAILED
+
+browser = launch(p.chromium, CHROMELEON, captcha=True)
+page = browser.new_page()
+cdp = page.context.new_cdp_session(page)
+enable_captcha(cdp)
+cdp.on(CAPTCHA_SOLVED, lambda p: print("solved in", p["timeMs"], "ms"))
+cdp.on(CAPTCHA_FAILED, lambda p: print("failed:", p["reason"]))
+page.goto("https://example.com/with-a-recaptcha")
+```
+
+`solver_eval(cdp, expression, frame_url_contains="")` runs JS in the solver's
+isolated world (pierces **closed** shadow roots); its result arrives on the
+`SOLVER_EVAL_RESULT` event.
+
 ## API
 
 | | |
@@ -91,6 +113,9 @@ agree.
 | `credentials_params(spec)` / `check_registration(result)` | build and check the registration |
 | `parse_proxy(proxy)` / `normalize_server(server)` | URL, dict or `ProxySpec` → canonical form |
 | `LAUNCH_ARGS` | flags a per-context proxy needs |
+| `launch(..., captcha=True)` | turn on the built-in captcha solver |
+| `enable_captcha(cdp)` / `disable_captcha(cdp)` | `Chromeleon` captcha lifecycle events |
+| `solver_eval(cdp, expr, frame="")` | eval in the solver's isolated world (pierces closed shadow roots) |
 
 `proxy` may be a URL (`http://user:pass@host:port`, scheme optional), a
 Playwright-style dict, or a `ProxySpec`. Credentials inside a URL are

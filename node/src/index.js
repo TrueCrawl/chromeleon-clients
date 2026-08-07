@@ -26,6 +26,9 @@
  *       checkRegistration(await send(CREDENTIALS_METHOD, credentialsParams(spec)));
  *       return send('Target.createBrowserContext', { proxyServer: spec.server });
  *     });
+ *
+ * The built-in captcha solver runs on its own once enabled at launch; the
+ * `Chromeleon` CDP domain re-exported here only observes and steers it.
  */
 const {
   LAUNCH_ARGS,
@@ -36,6 +39,19 @@ const {
   credentialsParams,
   checkRegistration,
   withProxyRegistration,
+  CAPTCHA_SOLVER_SWITCH,
+  CAPTCHA_MODEL_PATH_SWITCH,
+  ENABLE_METHOD,
+  DISABLE_METHOD,
+  SOLVER_EVAL_METHOD,
+  CAPTCHA_DETECTED,
+  CAPTCHA_SOLVING,
+  CAPTCHA_SOLVED,
+  CAPTCHA_FAILED,
+  SOLVER_EVAL_RESULT,
+  CAPTCHA_EVENTS,
+  captchaLaunchArgs,
+  solverEvalParams,
 } = require('./core');
 const {
   launch,
@@ -43,6 +59,9 @@ const {
   newProxyContext,
   newProxyContextPuppeteer,
   newProxyContextWith,
+  enableCaptcha,
+  disableCaptcha,
+  solverEval,
 } = require('./adapters');
 
 // Destructured into locals and re-exported as shorthand on purpose. Node lets
@@ -66,4 +85,21 @@ module.exports = {
   newProxyContext,
   newProxyContextPuppeteer,
   newProxyContextWith,
+  // captcha solver (Chromeleon CDP domain)
+  CAPTCHA_SOLVER_SWITCH,
+  CAPTCHA_MODEL_PATH_SWITCH,
+  ENABLE_METHOD,
+  DISABLE_METHOD,
+  SOLVER_EVAL_METHOD,
+  CAPTCHA_DETECTED,
+  CAPTCHA_SOLVING,
+  CAPTCHA_SOLVED,
+  CAPTCHA_FAILED,
+  SOLVER_EVAL_RESULT,
+  CAPTCHA_EVENTS,
+  captchaLaunchArgs,
+  solverEvalParams,
+  enableCaptcha,
+  disableCaptcha,
+  solverEval,
 };

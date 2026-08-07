@@ -65,14 +65,48 @@ await withProxyRegistration(conn, proxy, async (spec) => {
 });
 ```
 
+## Captcha solving
+
+Chromeleon ships a built-in reCAPTCHA/hCaptcha solver (audio reCAPTCHA v2/Enterprise
++ Turnstile / hCaptcha / DataDome / PerimeterX). Launch with `captcha: true` and it
+solves challenges **automatically** — you don't call it. The models are embedded in
+the release binary. The `Chromeleon` CDP domain only reports the lifecycle (its
+events are visible to the DevTools session, not the page):
+
+```js
+const { chromium } = require('playwright');
+const {
+  launch, enableCaptcha, CAPTCHA_SOLVED, CAPTCHA_FAILED,
+} = require('chromeleon');
+
+const browser = await launch(chromium, '/path/to/chromeleon', { captcha: true });
+const page = await browser.newPage();
+const cdp = await page.context().newCDPSession(page);
+await enableCaptcha(cdp);
+cdp.on(CAPTCHA_SOLVED, (p) => console.log('solved in', Math.round(p.timeMs), 'ms'));
+cdp.on(CAPTCHA_FAILED, (p) => console.log('failed:', p.reason));
+await page.goto('https://example.com/with-a-recaptcha');
+```
+
+Events: `CAPTCHA_DETECTED` `{sitekey}`, `CAPTCHA_SOLVING` `{sitekey, method}`,
+`CAPTCHA_SOLVED` `{sitekey, attempts, timeMs}`, `CAPTCHA_FAILED` `{sitekey, attempts,
+reason}`. `solverEval(cdp, expression, frameUrlContains?)` runs JS in the solver's
+isolated world (pierces **closed** shadow roots); its string result arrives on the
+`SOLVER_EVAL_RESULT` event. `captchaModelPath` is a dev/self-host launch override.
+Full example: `examples/captcha.mjs`.
+
 ## API
 
 - `launch(chromium, executablePath, options?) → Promise<Browser>` — merges
-  `LAUNCH_ARGS`, strips `PROXY_*` env; every other option passes through.
+  `LAUNCH_ARGS`, strips `PROXY_*` env; `captcha` / `captchaModelPath` turn on the
+  solver; every other option passes through.
 - `newProxyContext(browser, proxy, contextOptions?) → Promise<BrowserContext>`
 - `newProxyContextPuppeteer(browser, proxy) → Promise<BrowserContext>`
 - `newProxyContextWith(connection, proxy, { send, createContext }) → Promise<any>`
 - `withProxyRegistration(connection, proxy, body) → Promise<T>`
+- captcha: `enableCaptcha(cdp)`, `disableCaptcha(cdp)`,
+  `solverEval(cdp, expression, frameUrlContains?)`, the `CAPTCHA_*` /
+  `SOLVER_EVAL_RESULT` event constants, `captchaLaunchArgs`, `solverEvalParams`.
 - core helpers: `parseProxy`, `normalizeServer`, `credentialsParams`,
   `checkRegistration`, `LAUNCH_ARGS`, `CREDENTIALS_METHOD`, `ProxySpec`,
   `browserProcessEnv`.
