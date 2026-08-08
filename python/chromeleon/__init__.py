@@ -45,10 +45,15 @@ from chromeleon.core import (  # noqa: F401
     parse_proxy,
     proxy_registration,
 )
+from chromeleon.perf import (  # noqa: F401
+    BrowserPool,
+    sticky_geo_env,
+)
 
 __all__ = [
     "CREDENTIALS_METHOD",
     "LAUNCH_ARGS",
+    "BrowserPool",
     "ProxySpec",
     "browser_process_env",
     "check_registration",
@@ -59,4 +64,5 @@ __all__ = [
     "normalize_server",
     "parse_proxy",
     "proxy_registration",
+    "sticky_geo_env",
 ]
