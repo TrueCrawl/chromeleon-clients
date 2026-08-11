@@ -17,6 +17,7 @@
 
 const {
   LAUNCH_ARGS,
+  SUPPRESSED_DEFAULT_ARGS,
   CREDENTIALS_METHOD,
   ENABLE_METHOD,
   DISABLE_METHOD,
@@ -84,6 +85,7 @@ async function launch(chromium, executablePath, options = {}) {
     executablePath,
     args: _mergeLaunchArgs(args, extra),
     env: browserProcessEnv(env),
+    ignoreDefaultArgs: SUPPRESSED_DEFAULT_ARGS.slice(),
     ...launchOptions,
   });
 }

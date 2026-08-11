@@ -59,3 +59,28 @@ test('contextOptions cannot override the normalized proxy', async () => {
   assert.equal(browser.seen.contextOptions.proxy.server, reg.params.proxyServer);
   assert.deepEqual(browser.seen.contextOptions.viewport, { width: 1920, height: 1080 });
 });
+
+/**
+ * launch() must suppress Playwright's own Google-services switches by default.
+ *
+ * A Playwright-launched Chromeleon was blocked by Google materially more often
+ * than the same binary launched bare on the same exit (113 paired trials on 113
+ * distinct exits, +22.1 pp, McNemar p = 1.6e-6). Playwright adds ~46 flags of
+ * its own that a bare launch does not, and a caller has no way to know which of
+ * them we care about — so launch() owns that decision.
+ */
+test('launch suppresses Playwright default args, and the caller can override', async () => {
+  const { launch } = require('../src/adapters');
+  const { SUPPRESSED_DEFAULT_ARGS } = require('../src/core');
+  const calls = [];
+  const chromium = { async launch(options) { calls.push(options); return {}; } };
+
+  await launch(chromium, '/bin/chrome');
+  assert.deepEqual(calls[0].ignoreDefaultArgs, [...SUPPRESSED_DEFAULT_ARGS],
+    'launch() must pass ignoreDefaultArgs by default');
+  assert.ok(calls[0].ignoreDefaultArgs.includes('--disable-field-trial-config'));
+
+  await launch(chromium, '/bin/chrome', { ignoreDefaultArgs: ['--only-this'] });
+  assert.deepEqual(calls[1].ignoreDefaultArgs, ['--only-this'],
+    'an explicit ignoreDefaultArgs must replace the default entirely');
+});

@@ -33,6 +33,7 @@ from typing import Any, Callable, Iterator, NamedTuple
 
 __all__ = [
     "LAUNCH_ARGS",
+    "SUPPRESSED_DEFAULT_ARGS",
     "ProxySpec",
     "normalize_server",
     "parse_proxy",
@@ -59,6 +60,42 @@ __all__ = [
 #: which per-context proxies by definition are not.
 LAUNCH_ARGS: tuple[str, ...] = (
     "--webrtc-ip-handling-policy=disable_non_proxied_udp",
+)
+
+#: Playwright default switches that :func:`chromeleon.launch` asks Playwright NOT
+#: to add.
+#:
+#: Playwright launches Chromium with ~46 flags of its own. Measured 2026-08-10
+#: over 113 paired trials on 113 distinct fresh exits, a Playwright-launched
+#: Chromeleon was blocked by Google materially more often than the same binary
+#: launched bare on the same exit in the same minute: 10.6% vs 32.7% pass,
+#: discordant 27-2, McNemar p = 1.6e-6, effect +22.1 pp (95% CI [+12.8, +31.5]).
+#: Attaching to a bare launch with connect_over_cdp instead recovers the whole
+#: penalty, which locates the cost in how Playwright LAUNCHES, not in CDP itself.
+#:
+#: ⚠️ The individual flag responsible has NOT been isolated. An early reading
+#: blamed --disable-field-trial-config; that did not replicate (30 pairs, p=0.50)
+#: and is retracted. This list is the Google-services-adjacent subset of
+#: Playwright's defaults, suppressed together; the supporting A/B for the list
+#: itself (3/3) came from a measurement window that overstated the overall effect
+#: ~5x, so treat the list as a considered default rather than a verified remedy,
+#: and re-run a paired A/B before quoting it as a fix.
+#:
+#: Callers who pass ``ignore_default_args`` themselves keep full control.
+SUPPRESSED_DEFAULT_ARGS: tuple[str, ...] = (
+    "--disable-field-trial-config",
+    "--disable-component-update",
+    "--disable-client-side-phishing-detection",
+    "--metrics-recording-only",
+    "--disable-breakpad",
+    "--no-service-autorun",
+    "--disable-extensions",
+    "--disable-default-apps",
+    "--disable-component-extensions-with-background-pages",
+    "--disable-search-engine-choice-screen",
+    "--no-default-browser-check",
+    "--unsafely-disable-devtools-self-xss-warnings",
+    "--use-mock-keychain",
 )
 
 _locks: dict[tuple[Any, str], threading.Lock] = {}

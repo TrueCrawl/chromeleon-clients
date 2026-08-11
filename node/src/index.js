@@ -32,6 +32,7 @@
  */
 const {
   LAUNCH_ARGS,
+  SUPPRESSED_DEFAULT_ARGS,
   CREDENTIALS_METHOD,
   ProxySpec,
   normalizeServer,
@@ -72,6 +73,7 @@ const {
 module.exports = {
   // core protocol
   LAUNCH_ARGS,
+  SUPPRESSED_DEFAULT_ARGS,
   CREDENTIALS_METHOD,
   ProxySpec,
   normalizeServer,

@@ -23,6 +23,7 @@ from chromeleon.core import (
     DISABLE_METHOD,
     ENABLE_METHOD,
     LAUNCH_ARGS,
+    SUPPRESSED_DEFAULT_ARGS,
     SOLVER_EVAL_METHOD,
     captcha_launch_args,
     check_registration,
@@ -47,10 +48,13 @@ def launch(chromium: Any, executable_path: str, *,
         browser = launch(p.chromium, CHROMELEON)
         context = new_proxy_context(browser, "http://user:pass@gateway:12321")
 
-    Equivalent to ``chromium.launch(...)`` plus the two things Playwright has no
-    way to know: LAUNCH_ARGS merged in (unless you already set that policy), and
-    the controller's PROXY_* variables stripped from the browser environment.
-    Every other keyword is passed straight through.
+    Equivalent to ``chromium.launch(...)`` plus the three things Playwright has
+    no way to know: LAUNCH_ARGS merged in (unless you already set that policy),
+    SUPPRESSED_DEFAULT_ARGS passed as ``ignore_default_args`` so Playwright's own
+    Google-services switches are not added, and the controller's PROXY_*
+    variables stripped from the browser environment. Every other keyword is
+    passed straight through, and passing ``ignore_default_args`` yourself
+    replaces the default list entirely.
 
     ``captcha=True`` turns on the built-in reCAPTCHA/hCaptcha solver, which then
     solves challenges automatically; observe it over CDP with
@@ -66,6 +70,7 @@ def launch(chromium: Any, executable_path: str, *,
         switch = flag.split("=", 1)[0]
         if not any(a.split("=", 1)[0] == switch for a in merged):
             merged.append(flag)
+    launch_options.setdefault("ignore_default_args", list(SUPPRESSED_DEFAULT_ARGS))
     return chromium.launch(executable_path=executable_path, args=merged,
                            env=browser_process_env(env), **launch_options)
 
