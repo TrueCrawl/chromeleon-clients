@@ -74,10 +74,15 @@ from chromeleon.core import (  # noqa: F401
     proxy_registration,
     solver_eval_params,
 )
+from chromeleon.perf import (  # noqa: F401
+    BrowserPool,
+    sticky_geo_env,
+)
 
 __all__ = [
     "CREDENTIALS_METHOD",
     "LAUNCH_ARGS",
+    "BrowserPool",
     "ProxySpec",
     "browser_process_env",
     "check_registration",
@@ -88,6 +93,7 @@ __all__ = [
     "normalize_server",
     "parse_proxy",
     "proxy_registration",
+    "sticky_geo_env",
     # Captcha solver (Chromeleon CDP domain).
     "CAPTCHA_SOLVER_SWITCH",
     "CAPTCHA_MODEL_PATH_SWITCH",
