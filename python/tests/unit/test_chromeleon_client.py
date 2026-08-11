@@ -65,10 +65,26 @@ def test_parse_proxy_dict_with_credentials_in_server():
     ("gateway:12321", "http://gateway:12321"),          # scheme-less gets http://
     ("http://[2001:db8::1]:9000", "http://[2001:db8::1]:9000"),  # IPv6 brackets kept
     ("HTTP://Up.Case:8080", "http://up.case:8080"),
+    # Surrounding whitespace is stripped, NOT read as part of the port. Losing
+    # the port here silently re-pointed the proxy at :80.
+    ("http://gateway:12321 ", "http://gateway:12321"),
+    (" http://gateway:12321", "http://gateway:12321"),
+    # The WHATWG host rules Playwright's parser applies and urlsplit does not.
+    ("http://%67ateway:12321", "http://gateway:12321"),          # percent-decoded
+    ("http://[0:0:0:0:0:0:0:1]:8080", "http://[::1]:8080"),      # IPv6 compressed
+    ("http://münchen.example:12321",
+     "http://xn--mnchen-3ya.example:12321"),                     # IDN punycoded
 ])
 def test_normalize_server_matches_playwright(raw, normalized):
     assert normalize_server(raw) == normalized
     assert parse_proxy(raw).server == normalized
+
+
+@pytest.mark.parametrize("raw", ["http://gateway:1x321", "http://gateway:99999"])
+def test_normalize_server_refuses_an_unparseable_port(raw):
+    """Loud beats silent: this used to return the host on the scheme default port."""
+    with pytest.raises(ValueError):
+        normalize_server(raw)
 
 
 def test_registered_server_is_what_playwright_will_send():

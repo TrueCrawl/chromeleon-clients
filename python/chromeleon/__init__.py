@@ -26,24 +26,53 @@ Playwright binding — uses the core directly:
         context_id = send("Target.createBrowserContext",
                           {"proxyServer": spec.server})
 
+Chromeleon also ships a built-in captcha solver. Launch with it on and it solves
+reCAPTCHA/hCaptcha automatically; watch it over a page CDP session:
+
+    from chromeleon import launch, enable_captcha, CAPTCHA_SOLVED, CAPTCHA_FAILED
+
+    browser = launch(p.chromium, CHROMELEON, captcha=True)
+    page = browser.new_page()
+    cdp = page.context.new_cdp_session(page)
+    enable_captcha(cdp)
+    cdp.on(CAPTCHA_SOLVED, lambda p: print("solved", p["timeMs"], "ms"))
+    cdp.on(CAPTCHA_FAILED, lambda p: print("failed", p["reason"]))
+    page.goto("https://example.com/with-a-recaptcha")
+
 Playwright objects go in and come back out unchanged; this does not wrap
 ``launch`` or own the browser.
 """
 from chromeleon.adapters import (  # noqa: F401
     browser_process_env,
+    disable_captcha,
+    enable_captcha,
     launch,
     new_proxy_context,
     new_proxy_context_async,
+    solver_eval,
 )
 from chromeleon.core import (  # noqa: F401
+    CAPTCHA_DETECTED,
+    CAPTCHA_EVENTS,
+    CAPTCHA_FAILED,
+    CAPTCHA_MODEL_PATH_SWITCH,
+    CAPTCHA_SOLVED,
+    CAPTCHA_SOLVER_SWITCH,
+    CAPTCHA_SOLVING,
     CREDENTIALS_METHOD,
+    DISABLE_METHOD,
+    ENABLE_METHOD,
     LAUNCH_ARGS,
     ProxySpec,
+    SOLVER_EVAL_METHOD,
+    SOLVER_EVAL_RESULT,
+    captcha_launch_args,
     check_registration,
     credentials_params,
     normalize_server,
     parse_proxy,
     proxy_registration,
+    solver_eval_params,
 )
 from chromeleon.perf import (  # noqa: F401
     BrowserPool,
@@ -65,4 +94,21 @@ __all__ = [
     "parse_proxy",
     "proxy_registration",
     "sticky_geo_env",
+    # Captcha solver (Chromeleon CDP domain).
+    "CAPTCHA_SOLVER_SWITCH",
+    "CAPTCHA_MODEL_PATH_SWITCH",
+    "ENABLE_METHOD",
+    "DISABLE_METHOD",
+    "SOLVER_EVAL_METHOD",
+    "CAPTCHA_DETECTED",
+    "CAPTCHA_SOLVING",
+    "CAPTCHA_SOLVED",
+    "CAPTCHA_FAILED",
+    "SOLVER_EVAL_RESULT",
+    "CAPTCHA_EVENTS",
+    "captcha_launch_args",
+    "solver_eval_params",
+    "enable_captcha",
+    "disable_captcha",
+    "solver_eval",
 ]

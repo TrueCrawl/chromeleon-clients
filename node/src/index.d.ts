@@ -36,7 +36,15 @@ export function browserProcessEnv(env?: Record<string, string>): Record<string, 
 export function launch(
   chromium: any,
   executablePath: string,
-  options?: { args?: string[]; env?: Record<string, string>; [k: string]: any },
+  options?: {
+    args?: string[];
+    env?: Record<string, string>;
+    /** Turn on the built-in reCAPTCHA/hCaptcha solver (`--captcha-solver`). */
+    captcha?: boolean;
+    /** Model-dir override (dev/self-host); implies `captcha`. */
+    captchaModelPath?: string;
+    [k: string]: any;
+  },
 ): Promise<any>;
 
 /** Playwright: a BrowserContext behind an authenticated per-context proxy. */
@@ -49,3 +57,37 @@ export function newProxyContextWith(
   proxy: ProxyInput,
   driver: { send: (method: string, params: object) => Promise<any>; createContext: (server: string) => Promise<any> },
 ): Promise<any>;
+
+// --- Captcha solver (Chromeleon CDP domain) -------------------------------
+
+/** Launch switch that turns the solver on: "--captcha-solver". */
+export const CAPTCHA_SOLVER_SWITCH: string;
+/** Model-dir override switch (dev/self-host): "--captcha-model-path". */
+export const CAPTCHA_MODEL_PATH_SWITCH: string;
+/** `Chromeleon` domain commands. */
+export const ENABLE_METHOD: string;
+export const DISABLE_METHOD: string;
+export const SOLVER_EVAL_METHOD: string;
+/** `Chromeleon` domain events (subscribe with `cdp.on(name, cb)`). */
+export const CAPTCHA_DETECTED: string;
+export const CAPTCHA_SOLVING: string;
+export const CAPTCHA_SOLVED: string;
+export const CAPTCHA_FAILED: string;
+export const SOLVER_EVAL_RESULT: string;
+/** The four lifecycle events: detected -> solving -> solved | failed. */
+export const CAPTCHA_EVENTS: readonly string[];
+
+/** Flags that turn on the built-in captcha solver (`--captcha-solver` [+ model path]). */
+export function captchaLaunchArgs(modelPath?: string | null): string[];
+/** Params for `Chromeleon.solverEval`. */
+export function solverEvalParams(
+  expression: string,
+  frameUrlContains?: string,
+): { expression: string; frameUrlContains: string };
+
+/** Enable Chromeleon captcha lifecycle events on a page CDP session. */
+export function enableCaptcha(cdp: any): Promise<any>;
+/** Disable Chromeleon captcha event notifications on a page CDP session. */
+export function disableCaptcha(cdp: any): Promise<any>;
+/** Evaluate JS in the solver's isolated world; result arrives as SOLVER_EVAL_RESULT. */
+export function solverEval(cdp: any, expression: string, frameUrlContains?: string): Promise<any>;

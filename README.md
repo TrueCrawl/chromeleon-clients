@@ -2,11 +2,21 @@
 
 Client libraries for driving the [Chromeleon](https://chromeleon.dev) browser.
 Chromeleon itself is a licensed product; these drive it, they do not contain it.
+This repository is deliberately **separate from the browser build**: the clients
+are version-agnostic and ship on their own cadence to their own registries.
+
+```
+chromeleon-clients/
+  HANDSHAKE.md       # the ONE spec every client implements — source of truth
+  python/            # → PyPI  pip install chromeleon   (sync + async)
+  node/              # → npm   npm i chromeleon         (async)
+  .github/workflows/ # per-package publish (PyPI + npm Trusted Publishing)
+```
 
 | language | package | status |
 |---|---|---|
 | [Python](python/) | `pip install chromeleon` | available |
-| Node / TypeScript | `npm i chromeleon` | planned |
+| [Node / TypeScript](node/) | `npm i chromeleon` | available |
 | Java, C#, Go, Rust | — | see [the docs](https://chromeleon.dev/docs) for the raw CDP handshake |
 
 Each client lives in its own directory, versions on its own cadence, and
@@ -26,10 +36,16 @@ Target.createBrowserContext {proxyServer}
 
 No driver has an API shaped like that, and the ways of getting it wrong are
 quiet: credentials passed at launch leave the exit IP unresolved, which unbinds
-the persona's geo and disables WebRTC masking. A client exists so that is not
-the caller's problem.
+the persona's geo and disables WebRTC masking; and the driver may not send the
+server string you wrote — Playwright rewrites it, so the two commands disagree
+and the registration is never consumed. A client exists so that is not the
+caller's problem.
 
 ## The contract
+
+[`HANDSHAKE.md`](HANDSHAKE.md) is the source of truth, and it carries a **spec
+version**. When the handshake changes, bump the spec version and every client's
+**major** together; patch and minor move independently.
 
 The command name and the launch flag are owned by the browser repository, not by
 this one. A contract test there pins them against these clients' constants, so
@@ -45,7 +61,17 @@ npm install chromeleon          # node/
 
 Both packages implement the same handshake and are held to it by
 `HANDSHAKE.md`. The Node client is fully async, because every driver it wraps
-is; the Python one ships both a sync and an async entry point.
+is; the Python one ships both a sync and an async entry point
+(`new_proxy_context` / `new_proxy_context_async`).
+
+## Adding a language
+
+1. Implement `HANDSHAKE.md` as a thin adapter over the driver's CDP send.
+2. Add a publish workflow for its registry.
+
+There is nothing to codegen — this is a stateful CDP handshake, not a REST or
+gRPC surface — so each client is a small native implementation held to the
+shared spec.
 
 ## Releasing the Python client
 
@@ -68,11 +94,12 @@ PyPI can never be reused, even after a release is yanked.
 `publish-node.yml` publishes `node/` to npm with Trusted Publishing, the same
 tokenless mechanism as the Python workflow.
 
-npm differs from PyPI in one way that matters: there is no "pending publisher",
-so a trusted publisher can only be attached to a package that already exists.
-The first publish of a new name is therefore manual and token-authenticated;
-afterwards, attach this workflow at npmjs.com -> the package -> Settings ->
-Trusted Publisher, and no credential is needed again.
+npm differs from PyPI in one way that mattered once: there is no "pending
+publisher", so a trusted publisher can only be attached to a package that
+already exists. The first publish of a new name is therefore manual and
+token-authenticated. That has been done — `chromeleon` exists on npm — so the
+workflow can now be attached at npmjs.com -> the package -> Settings -> Trusted
+Publisher, and no credential is needed again.
 
 Release with a `node-v<version>` tag. As with Python, the build refuses to
 publish when the tag and `package.json` disagree — npm versions are immutable

@@ -25,6 +25,7 @@ WebRTC masking. Chromeleon fails closed on that with a remediation banner.
 """
 from __future__ import annotations
 
+import ipaddress
 import threading
 from contextlib import contextmanager
 from urllib.parse import unquote, urlsplit
@@ -32,10 +33,25 @@ from typing import Any, Callable, Iterator, NamedTuple
 
 __all__ = [
     "LAUNCH_ARGS",
+    "SUPPRESSED_DEFAULT_ARGS",
     "ProxySpec",
     "normalize_server",
     "parse_proxy",
     "proxy_registration",
+    # Captcha solver (Chromeleon CDP domain).
+    "CAPTCHA_SOLVER_SWITCH",
+    "CAPTCHA_MODEL_PATH_SWITCH",
+    "ENABLE_METHOD",
+    "DISABLE_METHOD",
+    "SOLVER_EVAL_METHOD",
+    "CAPTCHA_DETECTED",
+    "CAPTCHA_SOLVING",
+    "CAPTCHA_SOLVED",
+    "CAPTCHA_FAILED",
+    "SOLVER_EVAL_RESULT",
+    "CAPTCHA_EVENTS",
+    "captcha_launch_args",
+    "solver_eval_params",
 ]
 
 #: Launch flags a per-context proxy needs. A context-level proxy routes HTTP,
@@ -44,6 +60,42 @@ __all__ = [
 #: which per-context proxies by definition are not.
 LAUNCH_ARGS: tuple[str, ...] = (
     "--webrtc-ip-handling-policy=disable_non_proxied_udp",
+)
+
+#: Playwright default switches that :func:`chromeleon.launch` asks Playwright NOT
+#: to add.
+#:
+#: Playwright launches Chromium with ~46 flags of its own. Measured 2026-08-10
+#: over 113 paired trials on 113 distinct fresh exits, a Playwright-launched
+#: Chromeleon was blocked by Google materially more often than the same binary
+#: launched bare on the same exit in the same minute: 10.6% vs 32.7% pass,
+#: discordant 27-2, McNemar p = 1.6e-6, effect +22.1 pp (95% CI [+12.8, +31.5]).
+#: Attaching to a bare launch with connect_over_cdp instead recovers the whole
+#: penalty, which locates the cost in how Playwright LAUNCHES, not in CDP itself.
+#:
+#: ⚠️ The individual flag responsible has NOT been isolated. An early reading
+#: blamed --disable-field-trial-config; that did not replicate (30 pairs, p=0.50)
+#: and is retracted. This list is the Google-services-adjacent subset of
+#: Playwright's defaults, suppressed together; the supporting A/B for the list
+#: itself (3/3) came from a measurement window that overstated the overall effect
+#: ~5x, so treat the list as a considered default rather than a verified remedy,
+#: and re-run a paired A/B before quoting it as a fix.
+#:
+#: Callers who pass ``ignore_default_args`` themselves keep full control.
+SUPPRESSED_DEFAULT_ARGS: tuple[str, ...] = (
+    "--disable-field-trial-config",
+    "--disable-component-update",
+    "--disable-client-side-phishing-detection",
+    "--metrics-recording-only",
+    "--disable-breakpad",
+    "--no-service-autorun",
+    "--disable-extensions",
+    "--disable-default-apps",
+    "--disable-component-extensions-with-background-pages",
+    "--disable-search-engine-choice-screen",
+    "--no-default-browser-check",
+    "--unsafely-disable-devtools-self-xss-warnings",
+    "--use-mock-keychain",
 )
 
 _locks: dict[tuple[Any, str], threading.Lock] = {}
@@ -66,6 +118,31 @@ class ProxySpec(NamedTuple):
 _DEFAULT_PORTS = {"http": 80, "https": 443, "ws": 80, "wss": 443}
 
 
+def _canonical_host(host: str) -> str:
+    """The host as a WHATWG URL parser would render it.
+
+    ``urlsplit().hostname`` already lowercases and unbrackets, but stops there;
+    the parser Playwright uses also percent-decodes the host, compresses an IPv6
+    literal, and punycodes a non-ASCII label. Skipping those leaves two spellings
+    of one host, and the registration is matched by bytes.
+    """
+    host = unquote(host)
+    if ":" in host:                       # IPv6 — hostname stripped the brackets
+        try:
+            return f"[{ipaddress.IPv6Address(host).compressed}]"
+        except ValueError:
+            return f"[{host}]"
+    if any(ord(c) > 127 for c in host):
+        try:
+            # Best effort: the stdlib codec is IDNA2003 where WHATWG specifies
+            # UTS-46. They agree on the host names proxy gateways actually use,
+            # and leaving the label undecoded is never the better failure.
+            host = host.encode("idna").decode("ascii")
+        except UnicodeError:
+            pass
+    return host.lower()
+
+
 def normalize_server(server: str) -> str:
     """Canonicalise a proxy server the way Playwright will.
 
@@ -76,18 +153,18 @@ def normalize_server(server: str) -> str:
     when the scheme is missing. Registering the raw string would then not match
     the context's, and the registration would never be consumed. So we normalise
     first and use the result for both.
+
+    Raises ``ValueError`` on an unparseable port. That is deliberate: a proxy
+    string with a stray character or trailing space used to lose its port here
+    and come back pointing at :80, which is both wrong and silent.
     """
-    parsed = urlsplit(server)
+    raw = str(server).strip()
+    parsed = urlsplit(raw)
     if not parsed.scheme or not parsed.netloc:
-        parsed = urlsplit("http://" + server)
+        parsed = urlsplit("http://" + raw)
     scheme = (parsed.scheme or "http").lower()
-    host = (parsed.hostname or "").lower()
-    if ":" in host:                       # IPv6 — hostname strips the brackets
-        host = f"[{host}]"
-    try:
-        port = parsed.port
-    except ValueError:
-        port = None
+    port = parsed.port                    # ValueError on a bad port — let it out
+    host = _canonical_host(parsed.hostname or "")
     if port is not None and port != _DEFAULT_PORTS.get(scheme):
         host = f"{host}:{port}"
     return f"{scheme}://{host}"
@@ -193,3 +270,63 @@ def proxy_registration(
         yield spec
     finally:
         lock.release()
+
+
+# --- Captcha solver -------------------------------------------------------
+#
+# Chromeleon ships a built-in reCAPTCHA/hCaptcha solver. Once enabled at launch
+# it works AUTOMATICALLY — it detects the widget, solves it (audio first, image
+# fallback), and writes the token; you do not call it. The release binary embeds
+# the models, so ``--captcha-solver`` alone is enough.
+#
+# The ``Chromeleon`` CDP domain only OBSERVES and STEERS that solver: enable it
+# on a page CDP session to receive lifecycle events, and use ``solverEval`` to
+# run JS in the solver's isolated world (world 10), which pierces CLOSED shadow
+# roots. Like the proxy handshake, these are protocol facts — the constants and
+# param builders live here; the one-line driver calls live in ``adapters``.
+
+#: Launch switch that turns the solver on.
+CAPTCHA_SOLVER_SWITCH = "--captcha-solver"
+#: Launch switch overriding the model directory. Dev/self-host only — the
+#: release binary embeds the models, so you normally omit it.
+CAPTCHA_MODEL_PATH_SWITCH = "--captcha-model-path"
+
+#: ``Chromeleon`` domain commands, sent on a page CDP session.
+ENABLE_METHOD = "Chromeleon.enable"
+DISABLE_METHOD = "Chromeleon.disable"
+SOLVER_EVAL_METHOD = "Chromeleon.solverEval"
+
+#: ``Chromeleon`` domain events. Subscribe with the driver's ``cdp.on(name, cb)``.
+CAPTCHA_DETECTED = "Chromeleon.captchaDetected"    # {sitekey}
+CAPTCHA_SOLVING = "Chromeleon.captchaSolving"      # {sitekey, method: audio|image}
+CAPTCHA_SOLVED = "Chromeleon.captchaSolved"        # {sitekey, attempts, timeMs}
+CAPTCHA_FAILED = "Chromeleon.captchaFailed"        # {sitekey, attempts, reason}
+SOLVER_EVAL_RESULT = "Chromeleon.solverEvalResult"  # {result}
+
+#: The four captcha lifecycle events, detected -> solving -> solved | failed.
+CAPTCHA_EVENTS = (CAPTCHA_DETECTED, CAPTCHA_SOLVING, CAPTCHA_SOLVED, CAPTCHA_FAILED)
+
+
+def captcha_launch_args(model_path: str | None = None) -> tuple[str, ...]:
+    """Launch flags that turn on the built-in captcha solver.
+
+    The release binary embeds the models, so this is just ``--captcha-solver``.
+    ``model_path`` is a dev/self-host override that also appends
+    ``--captcha-model-path=<dir>``.
+    """
+    args = [CAPTCHA_SOLVER_SWITCH]
+    if model_path is not None:
+        args.append(f"{CAPTCHA_MODEL_PATH_SWITCH}={model_path}")
+    return tuple(args)
+
+
+def solver_eval_params(expression: str, frame_url_contains: str = "") -> dict[str, str]:
+    """Params for ``Chromeleon.solverEval``.
+
+    ``expression`` runs in the solver's isolated world (pierces CLOSED shadow
+    roots). ``frame_url_contains`` selects a subframe whose committed URL
+    contains that substring (for cross-origin OOPIFs); the empty string targets
+    the primary main frame. The string result arrives as a ``solverEvalResult``
+    event, not as the command return.
+    """
+    return {"expression": expression, "frameUrlContains": frame_url_contains}
