@@ -80,6 +80,27 @@ def test_normalize_server_matches_playwright(raw, normalized):
     assert parse_proxy(raw).server == normalized
 
 
+def test_ipv6_is_serialized_the_whatwg_way_not_the_cpython_way() -> None:
+    """An IPv4-mapped address must render as hex, on every interpreter.
+
+    ``ipaddress.IPv6Address.compressed`` is not stable across CPython releases:
+    3.12.3 gives ``::ffff:c0a8:1`` and 3.12.13 gives ``::ffff:192.168.0.1``.
+    WHATWG — and so the browser, and the driver that re-normalizes whatever we
+    register — never emits the dotted-quad form, so on the newer interpreter this
+    client registered a server the context could not match and the registration
+    was never consumed. Caught by the shared conformance corpus (case s35) on CI
+    while the same code passed locally.
+    """
+    assert normalize_server("http://[::ffff:192.168.0.1]:3128") == "http://[::ffff:c0a8:1]:3128"
+    assert normalize_server("http://[64:ff9b::1.2.3.4]:1") == "http://[64:ff9b::102:304]:1"
+    # …and the rest of the serializer: first longest run of >= 2 zeroes wins,
+    # a single zero piece is never compressed, hex is lowercase.
+    assert normalize_server("http://[0:0:0:1:0:0:0:1]:1") == "http://[::1:0:0:0:1]:1"
+    assert normalize_server("http://[1:0:0:2:0:0:0:3]:1") == "http://[1:0:0:2::3]:1"
+    assert normalize_server("http://[1:2:3:4:5:6:7:0]:1") == "http://[1:2:3:4:5:6:7:0]:1"
+    assert normalize_server("http://[2001:0DB8::0001]:1") == "http://[2001:db8::1]:1"
+
+
 @pytest.mark.parametrize("raw", ["http://gateway:1x321", "http://gateway:99999"])
 def test_normalize_server_refuses_an_unparseable_port(raw):
     """Loud beats silent: this used to return the host on the scheme default port."""

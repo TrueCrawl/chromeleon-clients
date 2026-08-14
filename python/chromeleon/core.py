@@ -118,6 +118,50 @@ class ProxySpec(NamedTuple):
 _DEFAULT_PORTS = {"http": 80, "https": 443, "ws": 80, "wss": 443}
 
 
+def _serialize_ipv6(address: ipaddress.IPv6Address) -> str:
+    """WHATWG's IPv6 serializer, which is NOT ``IPv6Address.compressed``.
+
+    ``compressed`` is not stable across CPython releases: 3.12.3 renders
+    ``::ffff:192.168.0.1`` as ``::ffff:c0a8:1``, while 3.12.13 renders it back as
+    the dotted-quad. WHATWG (and therefore the browser, and the driver that
+    re-normalizes what we register) never uses the dotted-quad form, so on the
+    newer interpreter this client registered a server string the context would
+    not match and the registration was never consumed — a proxy that silently
+    does nothing, appearing on a patch upgrade of Python.
+
+    This is the algorithm from the URL Standard, "IPv6 serializer": the first
+    longest run of two or more zero pieces becomes ``::``, everything else is
+    lowercase hex.
+    """
+    pieces = [int.from_bytes(address.packed[i:i + 2], "big") for i in range(0, 16, 2)]
+
+    compress, best_run = None, 1          # a run of one zero is not compressed
+    run_start, run_length = None, 0
+    for index, piece in enumerate((*pieces, None)):
+        if piece == 0:
+            run_start = index if run_start is None else run_start
+            run_length += 1
+            continue
+        if run_length > best_run:
+            compress, best_run = run_start, run_length
+        run_start, run_length = None, 0
+
+    out, ignore_zeros = "", False
+    for index, piece in enumerate(pieces):
+        if ignore_zeros:
+            if piece == 0:
+                continue
+            ignore_zeros = False
+        if index == compress:
+            out += "::" if index == 0 else ":"
+            ignore_zeros = True
+            continue
+        out += format(piece, "x")
+        if index != 7:
+            out += ":"
+    return out
+
+
 def _canonical_host(host: str) -> str:
     """The host as a WHATWG URL parser would render it.
 
@@ -129,7 +173,7 @@ def _canonical_host(host: str) -> str:
     host = unquote(host)
     if ":" in host:                       # IPv6 — hostname stripped the brackets
         try:
-            return f"[{ipaddress.IPv6Address(host).compressed}]"
+            return f"[{_serialize_ipv6(ipaddress.IPv6Address(host))}]"
         except ValueError:
             return f"[{host}]"
     if any(ord(c) > 127 for c in host):
