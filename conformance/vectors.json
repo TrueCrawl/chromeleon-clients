@@ -1,0 +1,1832 @@
+{
+  "spec_version": 1,
+  "description": "Shared parsing/normalization corpus for HANDSHAKE.md invariants 1 and 2. Every client must turn `input` into `expect`, because the proxyServer string the browser is given has to be byte-identical in both commands and the credentials have to be decoded exactly once.",
+  "provenance": {
+    "measured": "2026-08-12",
+    "python": "chromeleon.core.parse_proxy (CPython 3.12)",
+    "node": "src/core.parseProxy (Node 18)",
+    "server_oracle": "playwright-core 1.59.1 normalizeProxySettings",
+    "rulings": "conformance/RULINGS.md"
+  },
+  "error_kinds": {
+    "invalid_server": "the server is not a URL, has no host, or has a bad port",
+    "missing_server": "no server was given",
+    "undecodable_credential": "a URL credential percent-decodes to non-UTF-8 bytes"
+  },
+  "cases": [
+    {
+      "id": "s01",
+      "note": "bare host:port",
+      "input": {
+        "form": "url",
+        "value": "127.0.0.1:8080"
+      },
+      "expect": {
+        "server": "http://127.0.0.1:8080",
+        "username": null,
+        "password": null,
+        "authenticated": false
+      },
+      "basis": "agreed",
+      "playwright_normalizes_input_to": "http://127.0.0.1:8080"
+    },
+    {
+      "id": "s02",
+      "note": "host, no port",
+      "input": {
+        "form": "url",
+        "value": "gateway.example.com"
+      },
+      "expect": {
+        "server": "http://gateway.example.com",
+        "username": null,
+        "password": null,
+        "authenticated": false
+      },
+      "basis": "agreed",
+      "playwright_normalizes_input_to": "http://gateway.example.com"
+    },
+    {
+      "id": "s03",
+      "note": "explicit http scheme",
+      "input": {
+        "form": "url",
+        "value": "http://gateway.example.com:12321"
+      },
+      "expect": {
+        "server": "http://gateway.example.com:12321",
+        "username": null,
+        "password": null,
+        "authenticated": false
+      },
+      "basis": "agreed",
+      "playwright_normalizes_input_to": "http://gateway.example.com:12321"
+    },
+    {
+      "id": "s04",
+      "note": "explicit https scheme",
+      "input": {
+        "form": "url",
+        "value": "https://gateway.example.com:8443"
+      },
+      "expect": {
+        "server": "https://gateway.example.com:8443",
+        "username": null,
+        "password": null,
+        "authenticated": false
+      },
+      "basis": "agreed",
+      "playwright_normalizes_input_to": "https://gateway.example.com:8443"
+    },
+    {
+      "id": "s05",
+      "note": "UPPERCASE scheme + MIXED-case host",
+      "input": {
+        "form": "url",
+        "value": "HTTP://Gateway.Example.COM:12321"
+      },
+      "expect": {
+        "server": "http://gateway.example.com:12321",
+        "username": null,
+        "password": null,
+        "authenticated": false
+      },
+      "basis": "agreed",
+      "playwright_normalizes_input_to": "http://gateway.example.com:12321"
+    },
+    {
+      "id": "s06",
+      "note": "UPPERCASE scheme, no port",
+      "input": {
+        "form": "url",
+        "value": "HTTPS://EXAMPLE.COM"
+      },
+      "expect": {
+        "server": "https://example.com",
+        "username": null,
+        "password": null,
+        "authenticated": false
+      },
+      "basis": "agreed",
+      "playwright_normalizes_input_to": "https://example.com"
+    },
+    {
+      "id": "s07",
+      "note": "default port http:80",
+      "input": {
+        "form": "url",
+        "value": "http://example.com:80"
+      },
+      "expect": {
+        "server": "http://example.com",
+        "username": null,
+        "password": null,
+        "authenticated": false
+      },
+      "basis": "agreed",
+      "playwright_normalizes_input_to": "http://example.com"
+    },
+    {
+      "id": "s08",
+      "note": "default port https:443",
+      "input": {
+        "form": "url",
+        "value": "https://example.com:443"
+      },
+      "expect": {
+        "server": "https://example.com",
+        "username": null,
+        "password": null,
+        "authenticated": false
+      },
+      "basis": "agreed",
+      "playwright_normalizes_input_to": "https://example.com"
+    },
+    {
+      "id": "s09",
+      "note": "default port ws:80",
+      "input": {
+        "form": "url",
+        "value": "ws://example.com:80"
+      },
+      "expect": {
+        "server": "ws://example.com",
+        "username": null,
+        "password": null,
+        "authenticated": false
+      },
+      "basis": "agreed",
+      "playwright_normalizes_input_to": "ws://example.com"
+    },
+    {
+      "id": "s10",
+      "note": "default port wss:443",
+      "input": {
+        "form": "url",
+        "value": "wss://example.com:443"
+      },
+      "expect": {
+        "server": "wss://example.com",
+        "username": null,
+        "password": null,
+        "authenticated": false
+      },
+      "basis": "agreed",
+      "playwright_normalizes_input_to": "wss://example.com"
+    },
+    {
+      "id": "s11",
+      "note": "non-default port for http",
+      "input": {
+        "form": "url",
+        "value": "http://example.com:443"
+      },
+      "expect": {
+        "server": "http://example.com:443",
+        "username": null,
+        "password": null,
+        "authenticated": false
+      },
+      "basis": "agreed",
+      "playwright_normalizes_input_to": "http://example.com:443"
+    },
+    {
+      "id": "s12",
+      "note": "non-default port for https",
+      "input": {
+        "form": "url",
+        "value": "https://example.com:80"
+      },
+      "expect": {
+        "server": "https://example.com:80",
+        "username": null,
+        "password": null,
+        "authenticated": false
+      },
+      "basis": "agreed",
+      "playwright_normalizes_input_to": "https://example.com:80"
+    },
+    {
+      "id": "s13",
+      "note": "ws non-default port",
+      "input": {
+        "form": "url",
+        "value": "ws://example.com:8080"
+      },
+      "expect": {
+        "server": "ws://example.com:8080",
+        "username": null,
+        "password": null,
+        "authenticated": false
+      },
+      "basis": "agreed",
+      "playwright_normalizes_input_to": "ws://example.com:8080"
+    },
+    {
+      "id": "s14",
+      "note": "leading/trailing spaces",
+      "input": {
+        "form": "url",
+        "value": "  http://example.com:3128  "
+      },
+      "expect": {
+        "server": "http://example.com:3128",
+        "username": null,
+        "password": null,
+        "authenticated": false
+      },
+      "basis": "agreed",
+      "playwright_normalizes_input_to": "http://example.com:3128"
+    },
+    {
+      "id": "s15",
+      "note": "leading tab / trailing newline",
+      "input": {
+        "form": "url",
+        "value": "\thttp://example.com:3128\n"
+      },
+      "expect": {
+        "server": "http://example.com:3128",
+        "username": null,
+        "password": null,
+        "authenticated": false
+      },
+      "basis": "agreed",
+      "playwright_normalizes_input_to": "http://example.com:3128"
+    },
+    {
+      "id": "s16",
+      "note": "whitespace + schemeless",
+      "input": {
+        "form": "url",
+        "value": " gw.example.com:3128 "
+      },
+      "expect": {
+        "server": "http://gw.example.com:3128",
+        "username": null,
+        "password": null,
+        "authenticated": false
+      },
+      "basis": "agreed",
+      "playwright_normalizes_input_to": "ERROR: Invalid URL"
+    },
+    {
+      "id": "s17",
+      "note": "embedded creds",
+      "input": {
+        "form": "url",
+        "value": "http://user:pass@gw.example.com:8080"
+      },
+      "expect": {
+        "server": "http://gw.example.com:8080",
+        "username": "user",
+        "password": "pass",
+        "authenticated": true
+      },
+      "basis": "agreed",
+      "playwright_normalizes_input_to": "http://gw.example.com:8080"
+    },
+    {
+      "id": "s18",
+      "note": "embedded creds, no port",
+      "input": {
+        "form": "url",
+        "value": "http://user:pass@gw.example.com"
+      },
+      "expect": {
+        "server": "http://gw.example.com",
+        "username": "user",
+        "password": "pass",
+        "authenticated": true
+      },
+      "basis": "agreed",
+      "playwright_normalizes_input_to": "http://gw.example.com"
+    },
+    {
+      "id": "s19",
+      "note": "scheme-less URL WITH creds (python start=0 case)",
+      "input": {
+        "form": "url",
+        "value": "user:pass@gw.example.com:8080"
+      },
+      "expect": {
+        "server": "http://gw.example.com:8080",
+        "username": "user",
+        "password": "pass",
+        "authenticated": true
+      },
+      "basis": "agreed",
+      "playwright_normalizes_input_to": "http://gw.example.com:8080"
+    },
+    {
+      "id": "s20",
+      "note": "percent-encoded %40 in both creds",
+      "input": {
+        "form": "url",
+        "value": "http://us%40er:p%40ss@gw.example.com:8080"
+      },
+      "expect": {
+        "server": "http://gw.example.com:8080",
+        "username": "us@er",
+        "password": "p@ss",
+        "authenticated": true
+      },
+      "basis": "agreed",
+      "playwright_normalizes_input_to": "http://gw.example.com:8080"
+    },
+    {
+      "id": "s21",
+      "note": "percent-encoded %3A in password",
+      "input": {
+        "form": "url",
+        "value": "http://user:p%3Ass@gw.example.com:8080"
+      },
+      "expect": {
+        "server": "http://gw.example.com:8080",
+        "username": "user",
+        "password": "p:ss",
+        "authenticated": true
+      },
+      "basis": "agreed",
+      "playwright_normalizes_input_to": "http://gw.example.com:8080"
+    },
+    {
+      "id": "s22",
+      "note": "percent-encoded %2F in password",
+      "input": {
+        "form": "url",
+        "value": "http://user:p%2Fss@gw.example.com:8080"
+      },
+      "expect": {
+        "server": "http://gw.example.com:8080",
+        "username": "user",
+        "password": "p/ss",
+        "authenticated": true
+      },
+      "basis": "agreed",
+      "playwright_normalizes_input_to": "http://gw.example.com:8080"
+    },
+    {
+      "id": "s23",
+      "note": "'+' in password (must stay literal, not space)",
+      "input": {
+        "form": "url",
+        "value": "http://user:p+ss@gw.example.com:8080"
+      },
+      "expect": {
+        "server": "http://gw.example.com:8080",
+        "username": "user",
+        "password": "p+ss",
+        "authenticated": true
+      },
+      "basis": "agreed",
+      "playwright_normalizes_input_to": "http://gw.example.com:8080"
+    },
+    {
+      "id": "s24",
+      "note": "percent-encoded UTF-8 creds",
+      "input": {
+        "form": "url",
+        "value": "http://us%C3%A9r:p%C3%A4ss@gw.example.com:8080"
+      },
+      "expect": {
+        "server": "http://gw.example.com:8080",
+        "username": "usér",
+        "password": "päss",
+        "authenticated": true
+      },
+      "basis": "agreed",
+      "playwright_normalizes_input_to": "http://gw.example.com:8080"
+    },
+    {
+      "id": "s25",
+      "note": "raw non-ASCII creds",
+      "input": {
+        "form": "url",
+        "value": "http://üser:päss@gw.example.com:8080"
+      },
+      "expect": {
+        "server": "http://gw.example.com:8080",
+        "username": "üser",
+        "password": "päss",
+        "authenticated": true
+      },
+      "basis": "agreed",
+      "playwright_normalizes_input_to": "http://gw.example.com:8080"
+    },
+    {
+      "id": "s26",
+      "note": "username with no password",
+      "input": {
+        "form": "url",
+        "value": "http://useronly@gw.example.com:8080"
+      },
+      "expect": {
+        "server": "http://gw.example.com:8080",
+        "username": "useronly",
+        "password": null,
+        "authenticated": false
+      },
+      "basis": "agreed",
+      "playwright_normalizes_input_to": "http://gw.example.com:8080"
+    },
+    {
+      "id": "s27",
+      "note": "empty password",
+      "input": {
+        "form": "url",
+        "value": "http://user:@gw.example.com:8080"
+      },
+      "expect": {
+        "server": "http://gw.example.com:8080",
+        "username": "user",
+        "password": "",
+        "authenticated": true
+      },
+      "basis": "agreed",
+      "playwright_normalizes_input_to": "http://gw.example.com:8080"
+    },
+    {
+      "id": "s28",
+      "note": "empty username",
+      "input": {
+        "form": "url",
+        "value": "http://:pass@gw.example.com:8080"
+      },
+      "expect": {
+        "server": "http://gw.example.com:8080",
+        "username": "",
+        "password": "pass",
+        "authenticated": false
+      },
+      "basis": "agreed",
+      "playwright_normalizes_input_to": "http://gw.example.com:8080"
+    },
+    {
+      "id": "s29",
+      "note": "'@' inside the password, unencoded",
+      "input": {
+        "form": "url",
+        "value": "http://user:p@ss@gw.example.com:8080"
+      },
+      "expect": {
+        "server": "http://gw.example.com:8080",
+        "username": "user",
+        "password": "p@ss",
+        "authenticated": true
+      },
+      "basis": "agreed",
+      "playwright_normalizes_input_to": "http://gw.example.com:8080"
+    },
+    {
+      "id": "s30",
+      "note": "multiple '@'",
+      "input": {
+        "form": "url",
+        "value": "http://a@b:c@d@gw.example.com:8080"
+      },
+      "expect": {
+        "server": "http://gw.example.com:8080",
+        "username": "a@b",
+        "password": "c@d",
+        "authenticated": true
+      },
+      "basis": "agreed",
+      "playwright_normalizes_input_to": "http://gw.example.com:8080"
+    },
+    {
+      "id": "s31",
+      "note": "double '@' before host",
+      "input": {
+        "form": "url",
+        "value": "http://user:pass@@gw.example.com:8080"
+      },
+      "expect": {
+        "server": "http://gw.example.com:8080",
+        "username": "user",
+        "password": "pass@",
+        "authenticated": true
+      },
+      "basis": "agreed",
+      "playwright_normalizes_input_to": "http://gw.example.com:8080"
+    },
+    {
+      "id": "s32",
+      "note": "compressible IPv6 literal",
+      "input": {
+        "form": "url",
+        "value": "http://[2001:db8:0:0:0:0:0:1]:8080"
+      },
+      "expect": {
+        "server": "http://[2001:db8::1]:8080",
+        "username": null,
+        "password": null,
+        "authenticated": false
+      },
+      "basis": "agreed",
+      "playwright_normalizes_input_to": "http://[2001:db8::1]:8080"
+    },
+    {
+      "id": "s33",
+      "note": "uppercase-hex IPv6",
+      "input": {
+        "form": "url",
+        "value": "http://[2001:DB8::1]:8080"
+      },
+      "expect": {
+        "server": "http://[2001:db8::1]:8080",
+        "username": null,
+        "password": null,
+        "authenticated": false
+      },
+      "basis": "agreed",
+      "playwright_normalizes_input_to": "http://[2001:db8::1]:8080"
+    },
+    {
+      "id": "s34",
+      "note": "IPv6 loopback, no port",
+      "input": {
+        "form": "url",
+        "value": "http://[::1]"
+      },
+      "expect": {
+        "server": "http://[::1]",
+        "username": null,
+        "password": null,
+        "authenticated": false
+      },
+      "basis": "agreed",
+      "playwright_normalizes_input_to": "http://[::1]"
+    },
+    {
+      "id": "s35",
+      "note": "IPv4-mapped IPv6",
+      "input": {
+        "form": "url",
+        "value": "http://[::ffff:192.168.0.1]:3128"
+      },
+      "expect": {
+        "server": "http://[::ffff:c0a8:1]:3128",
+        "username": null,
+        "password": null,
+        "authenticated": false
+      },
+      "basis": "agreed",
+      "playwright_normalizes_input_to": "http://[::ffff:c0a8:1]:3128"
+    },
+    {
+      "id": "s36",
+      "note": "scheme-less bracketed IPv6",
+      "input": {
+        "form": "url",
+        "value": "[2001:db8:0:0:0:0:0:1]:8080"
+      },
+      "expect": {
+        "server": "http://[2001:db8::1]:8080",
+        "username": null,
+        "password": null,
+        "authenticated": false
+      },
+      "basis": "agreed",
+      "playwright_normalizes_input_to": "http://[2001:db8::1]:8080"
+    },
+    {
+      "id": "s37",
+      "note": "IPv6 + embedded creds",
+      "input": {
+        "form": "url",
+        "value": "http://user:pass@[2001:db8:0:0:0:0:0:1]:8080"
+      },
+      "expect": {
+        "server": "http://[2001:db8::1]:8080",
+        "username": "user",
+        "password": "pass",
+        "authenticated": true
+      },
+      "basis": "agreed",
+      "playwright_normalizes_input_to": "http://[2001:db8::1]:8080"
+    },
+    {
+      "id": "s38",
+      "note": "IPv6 with default port",
+      "input": {
+        "form": "url",
+        "value": "http://[2001:db8::1]:80"
+      },
+      "expect": {
+        "server": "http://[2001:db8::1]",
+        "username": null,
+        "password": null,
+        "authenticated": false
+      },
+      "basis": "agreed",
+      "playwright_normalizes_input_to": "http://[2001:db8::1]"
+    },
+    {
+      "id": "s39",
+      "note": "percent-encoded host (%61 == 'a')",
+      "input": {
+        "form": "url",
+        "value": "http://ex%61mple.com:8080"
+      },
+      "expect": {
+        "server": "http://example.com:8080",
+        "username": null,
+        "password": null,
+        "authenticated": false
+      },
+      "basis": "agreed",
+      "playwright_normalizes_input_to": "http://example.com:8080"
+    },
+    {
+      "id": "s40",
+      "note": "percent-encoded host, no port",
+      "input": {
+        "form": "url",
+        "value": "http://%65xample.com"
+      },
+      "expect": {
+        "server": "http://example.com",
+        "username": null,
+        "password": null,
+        "authenticated": false
+      },
+      "basis": "agreed",
+      "playwright_normalizes_input_to": "http://example.com"
+    },
+    {
+      "id": "s41",
+      "note": "IDN host (Latin-1 supplement)",
+      "input": {
+        "form": "url",
+        "value": "http://bücher.example:8080"
+      },
+      "expect": {
+        "server": "http://xn--bcher-kva.example:8080",
+        "username": null,
+        "password": null,
+        "authenticated": false
+      },
+      "basis": "agreed",
+      "playwright_normalizes_input_to": "http://xn--bcher-kva.example:8080"
+    },
+    {
+      "id": "s42",
+      "note": "IDN host (CJK)",
+      "input": {
+        "form": "url",
+        "value": "http://中国.example:8080"
+      },
+      "expect": {
+        "server": "http://xn--fiqs8s.example:8080",
+        "username": null,
+        "password": null,
+        "authenticated": false
+      },
+      "basis": "agreed",
+      "playwright_normalizes_input_to": "http://xn--fiqs8s.example:8080"
+    },
+    {
+      "id": "s43",
+      "note": "already-punycoded host",
+      "input": {
+        "form": "url",
+        "value": "http://xn--bcher-kva.example:8080"
+      },
+      "expect": {
+        "server": "http://xn--bcher-kva.example:8080",
+        "username": null,
+        "password": null,
+        "authenticated": false
+      },
+      "basis": "agreed",
+      "playwright_normalizes_input_to": "http://xn--bcher-kva.example:8080"
+    },
+    {
+      "id": "s44",
+      "note": "IDNA2003 (ss) vs UTS-46 non-transitional (xn--fa-hia)",
+      "input": {
+        "form": "url",
+        "value": "http://faß.example:8080"
+      },
+      "expect": {
+        "server": "http://xn--fa-hia.example:8080",
+        "username": null,
+        "password": null,
+        "authenticated": false
+      },
+      "basis": "ruling:node",
+      "observed": {
+        "python": {
+          "server": "http://fass.example:8080",
+          "username": null,
+          "password": null,
+          "authenticated": false
+        },
+        "node": {
+          "server": "http://xn--fa-hia.example:8080",
+          "username": null,
+          "password": null,
+          "authenticated": false
+        }
+      },
+      "playwright_normalizes_input_to": "http://xn--fa-hia.example:8080"
+    },
+    {
+      "id": "s45",
+      "note": "Greek final sigma: IDNA2003 vs UTS-46",
+      "input": {
+        "form": "url",
+        "value": "http://σόλος.example:8080"
+      },
+      "expect": {
+        "server": "http://xn--wxaijb9b.example:8080",
+        "username": null,
+        "password": null,
+        "authenticated": false
+      },
+      "basis": "ruling:node",
+      "observed": {
+        "python": {
+          "server": "http://xn--wxaikc6b.example:8080",
+          "username": null,
+          "password": null,
+          "authenticated": false
+        },
+        "node": {
+          "server": "http://xn--wxaijb9b.example:8080",
+          "username": null,
+          "password": null,
+          "authenticated": false
+        }
+      },
+      "playwright_normalizes_input_to": "http://xn--wxaijb9b.example:8080"
+    },
+    {
+      "id": "s46",
+      "note": "trailing path",
+      "input": {
+        "form": "url",
+        "value": "http://gw.example.com:8080/path"
+      },
+      "expect": {
+        "server": "http://gw.example.com:8080",
+        "username": null,
+        "password": null,
+        "authenticated": false
+      },
+      "basis": "agreed",
+      "playwright_normalizes_input_to": "http://gw.example.com:8080"
+    },
+    {
+      "id": "s47",
+      "note": "trailing path+query+fragment",
+      "input": {
+        "form": "url",
+        "value": "http://gw.example.com:8080/path?q=1#frag"
+      },
+      "expect": {
+        "server": "http://gw.example.com:8080",
+        "username": null,
+        "password": null,
+        "authenticated": false
+      },
+      "basis": "agreed",
+      "playwright_normalizes_input_to": "http://gw.example.com:8080"
+    },
+    {
+      "id": "s48",
+      "note": "scheme-less with path",
+      "input": {
+        "form": "url",
+        "value": "gw.example.com:8080/path"
+      },
+      "expect": {
+        "server": "http://gw.example.com:8080",
+        "username": null,
+        "password": null,
+        "authenticated": false
+      },
+      "basis": "agreed",
+      "playwright_normalizes_input_to": "http://gw.example.com:8080"
+    },
+    {
+      "id": "s49",
+      "note": "'@' in the query only, no creds",
+      "input": {
+        "form": "url",
+        "value": "http://gw.example.com/?a=@b"
+      },
+      "expect": {
+        "server": "http://gw.example.com",
+        "username": null,
+        "password": null,
+        "authenticated": false
+      },
+      "basis": "ruling:node",
+      "observed": {
+        "python": {
+          "server": "http://b",
+          "username": "gw.example.com/?a=",
+          "password": null,
+          "authenticated": false
+        },
+        "node": {
+          "server": "http://gw.example.com",
+          "username": null,
+          "password": null,
+          "authenticated": false
+        }
+      },
+      "playwright_normalizes_input_to": "http://gw.example.com"
+    },
+    {
+      "id": "s50",
+      "note": "creds AND '@' in query",
+      "input": {
+        "form": "url",
+        "value": "http://user:pass@gw.example.com:8080/p?x=@y"
+      },
+      "expect": {
+        "server": "http://gw.example.com:8080",
+        "username": "user",
+        "password": "pass",
+        "authenticated": true
+      },
+      "basis": "ruling:node",
+      "observed": {
+        "python": {
+          "server": "http://y",
+          "username": "user",
+          "password": "pass@gw.example.com:8080/p?x=",
+          "authenticated": true
+        },
+        "node": {
+          "server": "http://gw.example.com:8080",
+          "username": "user",
+          "password": "pass",
+          "authenticated": true
+        }
+      },
+      "playwright_normalizes_input_to": "http://gw.example.com:8080"
+    },
+    {
+      "id": "s51",
+      "note": "bad port (non-numeric)",
+      "input": {
+        "form": "url",
+        "value": "http://host:notaport"
+      },
+      "expect": {
+        "error": "invalid_server"
+      },
+      "basis": "agreed",
+      "playwright_normalizes_input_to": "http://http"
+    },
+    {
+      "id": "s52",
+      "note": "port out of range",
+      "input": {
+        "form": "url",
+        "value": "http://host:99999"
+      },
+      "expect": {
+        "error": "invalid_server"
+      },
+      "basis": "agreed",
+      "playwright_normalizes_input_to": "http://http"
+    },
+    {
+      "id": "s53",
+      "note": "space inside port",
+      "input": {
+        "form": "url",
+        "value": "http://host: 80"
+      },
+      "expect": {
+        "error": "invalid_server"
+      },
+      "basis": "agreed",
+      "playwright_normalizes_input_to": "http://http"
+    },
+    {
+      "id": "s54",
+      "note": "trailing space after port (inner)",
+      "input": {
+        "form": "url",
+        "value": "http://host:8080 "
+      },
+      "expect": {
+        "server": "http://host:8080",
+        "username": null,
+        "password": null,
+        "authenticated": false
+      },
+      "basis": "agreed",
+      "playwright_normalizes_input_to": "http://host:8080"
+    },
+    {
+      "id": "s55",
+      "note": "leading-zero port",
+      "input": {
+        "form": "url",
+        "value": "http://gw.example.com:0080"
+      },
+      "expect": {
+        "server": "http://gw.example.com",
+        "username": null,
+        "password": null,
+        "authenticated": false
+      },
+      "basis": "agreed",
+      "playwright_normalizes_input_to": "http://gw.example.com"
+    },
+    {
+      "id": "s56",
+      "note": "trailing colon, empty port",
+      "input": {
+        "form": "url",
+        "value": "http://gw.example.com:"
+      },
+      "expect": {
+        "server": "http://gw.example.com",
+        "username": null,
+        "password": null,
+        "authenticated": false
+      },
+      "basis": "agreed",
+      "playwright_normalizes_input_to": "http://gw.example.com"
+    },
+    {
+      "id": "s57",
+      "note": "empty string",
+      "input": {
+        "form": "url",
+        "value": ""
+      },
+      "expect": {
+        "error": "missing_server"
+      },
+      "basis": "ruling:node",
+      "observed": {
+        "python": {
+          "server": "http://",
+          "username": null,
+          "password": null,
+          "authenticated": false
+        },
+        "node": {
+          "error": "invalid_server"
+        }
+      },
+      "playwright_normalizes_input_to": "ERROR: Invalid URL"
+    },
+    {
+      "id": "s58",
+      "note": "whitespace-only string",
+      "input": {
+        "form": "url",
+        "value": "   "
+      },
+      "expect": {
+        "error": "missing_server"
+      },
+      "basis": "ruling:node",
+      "observed": {
+        "python": {
+          "server": "http://",
+          "username": null,
+          "password": null,
+          "authenticated": false
+        },
+        "node": {
+          "error": "invalid_server"
+        }
+      },
+      "playwright_normalizes_input_to": "ERROR: Invalid URL"
+    },
+    {
+      "id": "s59",
+      "note": "socks5 URL",
+      "input": {
+        "form": "url",
+        "value": "socks5://gw.example.com:1080"
+      },
+      "expect": {
+        "server": "socks5://gw.example.com:1080",
+        "username": null,
+        "password": null,
+        "authenticated": false
+      },
+      "basis": "agreed",
+      "playwright_normalizes_input_to": "socks5://gw.example.com:1080"
+    },
+    {
+      "id": "s60",
+      "note": "socks5 URL with creds",
+      "input": {
+        "form": "url",
+        "value": "socks5://user:pass@gw.example.com:1080"
+      },
+      "expect": {
+        "server": "socks5://gw.example.com:1080",
+        "username": "user",
+        "password": "pass",
+        "authenticated": true
+      },
+      "basis": "agreed",
+      "playwright_normalizes_input_to": "socks5://gw.example.com:1080"
+    },
+    {
+      "id": "s61",
+      "note": "socks5h URL",
+      "input": {
+        "form": "url",
+        "value": "socks5h://gw.example.com:1080"
+      },
+      "expect": {
+        "server": "socks5h://gw.example.com:1080",
+        "username": null,
+        "password": null,
+        "authenticated": false
+      },
+      "basis": "agreed",
+      "playwright_normalizes_input_to": "socks5h://gw.example.com:1080"
+    },
+    {
+      "id": "s62",
+      "note": "percent-encoded spaces in creds",
+      "input": {
+        "form": "url",
+        "value": "http://user%20name:pa%20ss@gw.example.com:8080"
+      },
+      "expect": {
+        "server": "http://gw.example.com:8080",
+        "username": "user name",
+        "password": "pa ss",
+        "authenticated": true
+      },
+      "basis": "agreed",
+      "playwright_normalizes_input_to": "http://gw.example.com:8080"
+    },
+    {
+      "id": "s63",
+      "note": "invalid percent escape in password",
+      "input": {
+        "form": "url",
+        "value": "http://user:p%GGss@gw.example.com:8080"
+      },
+      "expect": {
+        "server": "http://gw.example.com:8080",
+        "username": "user",
+        "password": "p%GGss",
+        "authenticated": true
+      },
+      "basis": "ruling:python",
+      "observed": {
+        "python": {
+          "server": "http://gw.example.com:8080",
+          "username": "user",
+          "password": "p%GGss",
+          "authenticated": true
+        },
+        "node": {
+          "error": "undecodable_credential"
+        }
+      },
+      "playwright_normalizes_input_to": "http://gw.example.com:8080"
+    },
+    {
+      "id": "s64",
+      "note": "mixed-case scheme, mixed-case host, no port",
+      "input": {
+        "form": "url",
+        "value": "HtTp://Gw.Example.COM"
+      },
+      "expect": {
+        "server": "http://gw.example.com",
+        "username": null,
+        "password": null,
+        "authenticated": false
+      },
+      "basis": "agreed",
+      "playwright_normalizes_input_to": "http://gw.example.com"
+    },
+    {
+      "id": "s65",
+      "note": "protocol-relative authority",
+      "input": {
+        "form": "url",
+        "value": "//gw.example.com:8080"
+      },
+      "expect": {
+        "server": "http://gw.example.com:8080",
+        "username": null,
+        "password": null,
+        "authenticated": false
+      },
+      "basis": "ruling:node",
+      "observed": {
+        "python": {
+          "server": "http://",
+          "username": null,
+          "password": null,
+          "authenticated": false
+        },
+        "node": {
+          "server": "http://gw.example.com:8080",
+          "username": null,
+          "password": null,
+          "authenticated": false
+        }
+      },
+      "playwright_normalizes_input_to": "http://gw.example.com:8080"
+    },
+    {
+      "id": "s66",
+      "note": "escape that is not valid UTF-8",
+      "input": {
+        "form": "url",
+        "value": "http://user:p%FFss@gw.example.com:8080"
+      },
+      "expect": {
+        "error": "undecodable_credential"
+      },
+      "basis": "ruling:spec",
+      "observed": {
+        "python": {
+          "server": "http://gw.example.com:8080",
+          "username": "user",
+          "password": "p�ss",
+          "authenticated": true
+        },
+        "node": {
+          "error": "undecodable_credential"
+        }
+      },
+      "playwright_normalizes_input_to": "http://gw.example.com:8080"
+    },
+    {
+      "id": "s67",
+      "note": "%25 decodes to a literal '%'",
+      "input": {
+        "form": "url",
+        "value": "http://user:pa%25ss@gw.example.com:8080"
+      },
+      "expect": {
+        "server": "http://gw.example.com:8080",
+        "username": "user",
+        "password": "pa%ss",
+        "authenticated": true
+      },
+      "basis": "agreed",
+      "playwright_normalizes_input_to": "http://gw.example.com:8080"
+    },
+    {
+      "id": "s68",
+      "note": "lone trailing '%' in password",
+      "input": {
+        "form": "url",
+        "value": "http://user:pass%@gw.example.com:8080"
+      },
+      "expect": {
+        "server": "http://gw.example.com:8080",
+        "username": "user",
+        "password": "pass%",
+        "authenticated": true
+      },
+      "basis": "ruling:python",
+      "observed": {
+        "python": {
+          "server": "http://gw.example.com:8080",
+          "username": "user",
+          "password": "pass%",
+          "authenticated": true
+        },
+        "node": {
+          "error": "undecodable_credential"
+        }
+      },
+      "playwright_normalizes_input_to": "http://gw.example.com:8080"
+    },
+    {
+      "id": "s69",
+      "note": "percent-encoded host decoding to a FORBIDDEN host char (space)",
+      "input": {
+        "form": "url",
+        "value": "http://ex%20ample.com:8080"
+      },
+      "expect": {
+        "error": "invalid_server"
+      },
+      "basis": "ruling:node",
+      "observed": {
+        "python": {
+          "server": "http://ex ample.com:8080",
+          "username": null,
+          "password": null,
+          "authenticated": false
+        },
+        "node": {
+          "error": "invalid_server"
+        }
+      },
+      "playwright_normalizes_input_to": "http://http"
+    },
+    {
+      "id": "s70",
+      "note": "percent-encoded host decoding to '/'",
+      "input": {
+        "form": "url",
+        "value": "http://ex%2Fample.com:8080"
+      },
+      "expect": {
+        "error": "invalid_server"
+      },
+      "basis": "ruling:node",
+      "observed": {
+        "python": {
+          "server": "http://ex/ample.com:8080",
+          "username": null,
+          "password": null,
+          "authenticated": false
+        },
+        "node": {
+          "error": "invalid_server"
+        }
+      },
+      "playwright_normalizes_input_to": "http://http"
+    },
+    {
+      "id": "d01",
+      "note": "plain dict",
+      "input": {
+        "form": "parts",
+        "value": {
+          "server": "gw.example.com:8080",
+          "username": "u",
+          "password": "p"
+        }
+      },
+      "expect": {
+        "server": "http://gw.example.com:8080",
+        "username": "u",
+        "password": "p",
+        "authenticated": true
+      },
+      "basis": "agreed",
+      "playwright_normalizes_input_to": "http://gw.example.com:8080"
+    },
+    {
+      "id": "d02",
+      "note": "server EMBEDS creds, no explicit username/password",
+      "input": {
+        "form": "parts",
+        "value": {
+          "server": "http://user:pass@gw.example.com:8080"
+        }
+      },
+      "expect": {
+        "server": "http://gw.example.com:8080",
+        "username": "user",
+        "password": "pass",
+        "authenticated": true
+      },
+      "basis": "ruling:python",
+      "observed": {
+        "python": {
+          "server": "http://gw.example.com:8080",
+          "username": "user",
+          "password": "pass",
+          "authenticated": true
+        },
+        "node": {
+          "server": "http://gw.example.com:8080",
+          "username": null,
+          "password": null,
+          "authenticated": false
+        }
+      },
+      "playwright_normalizes_input_to": "http://gw.example.com:8080"
+    },
+    {
+      "id": "d03",
+      "note": "embedded creds AND explicit creds",
+      "input": {
+        "form": "parts",
+        "value": {
+          "server": "http://user:pass@gw.example.com:8080",
+          "username": "u2",
+          "password": "p2"
+        }
+      },
+      "expect": {
+        "server": "http://gw.example.com:8080",
+        "username": "u2",
+        "password": "p2",
+        "authenticated": true
+      },
+      "basis": "agreed",
+      "playwright_normalizes_input_to": "http://gw.example.com:8080"
+    },
+    {
+      "id": "d04",
+      "note": "dict whose server embeds percent-encoded creds",
+      "input": {
+        "form": "parts",
+        "value": {
+          "server": "http://us%40er:p%40ss@gw.example.com:8080"
+        }
+      },
+      "expect": {
+        "server": "http://gw.example.com:8080",
+        "username": "us@er",
+        "password": "p@ss",
+        "authenticated": true
+      },
+      "basis": "ruling:python",
+      "observed": {
+        "python": {
+          "server": "http://gw.example.com:8080",
+          "username": "us@er",
+          "password": "p@ss",
+          "authenticated": true
+        },
+        "node": {
+          "server": "http://gw.example.com:8080",
+          "username": null,
+          "password": null,
+          "authenticated": false
+        }
+      },
+      "playwright_normalizes_input_to": "http://gw.example.com:8080"
+    },
+    {
+      "id": "d05",
+      "note": "explicit creds are LITERAL (must not be decoded)",
+      "input": {
+        "form": "parts",
+        "value": {
+          "server": "gw.example.com:8080",
+          "username": "us%40er",
+          "password": "p%40ss"
+        }
+      },
+      "expect": {
+        "server": "http://gw.example.com:8080",
+        "username": "us%40er",
+        "password": "p%40ss",
+        "authenticated": true
+      },
+      "basis": "agreed",
+      "playwright_normalizes_input_to": "http://gw.example.com:8080"
+    },
+    {
+      "id": "d06",
+      "note": "explicit username, no password key",
+      "input": {
+        "form": "parts",
+        "value": {
+          "server": "gw.example.com:8080",
+          "username": "u"
+        }
+      },
+      "expect": {
+        "server": "http://gw.example.com:8080",
+        "username": "u",
+        "password": null,
+        "authenticated": false
+      },
+      "basis": "agreed",
+      "playwright_normalizes_input_to": "http://gw.example.com:8080"
+    },
+    {
+      "id": "d07",
+      "note": "explicit password, no username key",
+      "input": {
+        "form": "parts",
+        "value": {
+          "server": "gw.example.com:8080",
+          "password": "p"
+        }
+      },
+      "expect": {
+        "server": "http://gw.example.com:8080",
+        "username": null,
+        "password": "p",
+        "authenticated": false
+      },
+      "basis": "agreed",
+      "playwright_normalizes_input_to": "http://gw.example.com:8080"
+    },
+    {
+      "id": "d08",
+      "note": "explicit EMPTY password",
+      "input": {
+        "form": "parts",
+        "value": {
+          "server": "gw.example.com:8080",
+          "username": "u",
+          "password": ""
+        }
+      },
+      "expect": {
+        "server": "http://gw.example.com:8080",
+        "username": "u",
+        "password": "",
+        "authenticated": true
+      },
+      "basis": "agreed",
+      "playwright_normalizes_input_to": "http://gw.example.com:8080"
+    },
+    {
+      "id": "d09",
+      "note": "explicit EMPTY username",
+      "input": {
+        "form": "parts",
+        "value": {
+          "server": "gw.example.com:8080",
+          "username": "",
+          "password": "p"
+        }
+      },
+      "expect": {
+        "server": "http://gw.example.com:8080",
+        "username": "",
+        "password": "p",
+        "authenticated": false
+      },
+      "basis": "agreed",
+      "playwright_normalizes_input_to": "http://gw.example.com:8080"
+    },
+    {
+      "id": "d10",
+      "note": "explicit nulls",
+      "input": {
+        "form": "parts",
+        "value": {
+          "server": "gw.example.com:8080",
+          "username": null,
+          "password": null
+        }
+      },
+      "expect": {
+        "server": "http://gw.example.com:8080",
+        "username": null,
+        "password": null,
+        "authenticated": false
+      },
+      "basis": "agreed",
+      "playwright_normalizes_input_to": "http://gw.example.com:8080"
+    },
+    {
+      "id": "d11",
+      "note": "embedded creds + explicit nulls",
+      "input": {
+        "form": "parts",
+        "value": {
+          "server": "http://user:pass@gw.example.com:8080",
+          "username": null,
+          "password": null
+        }
+      },
+      "expect": {
+        "server": "http://gw.example.com:8080",
+        "username": "user",
+        "password": "pass",
+        "authenticated": true
+      },
+      "basis": "ruling:python",
+      "observed": {
+        "python": {
+          "server": "http://gw.example.com:8080",
+          "username": "user",
+          "password": "pass",
+          "authenticated": true
+        },
+        "node": {
+          "server": "http://gw.example.com:8080",
+          "username": null,
+          "password": null,
+          "authenticated": false
+        }
+      },
+      "playwright_normalizes_input_to": "http://gw.example.com:8080"
+    },
+    {
+      "id": "d12",
+      "note": "dict server needs normalization",
+      "input": {
+        "form": "parts",
+        "value": {
+          "server": "HTTP://GW.Example.com:80",
+          "username": "u",
+          "password": "p"
+        }
+      },
+      "expect": {
+        "server": "http://gw.example.com",
+        "username": "u",
+        "password": "p",
+        "authenticated": true
+      },
+      "basis": "agreed",
+      "playwright_normalizes_input_to": "http://gw.example.com"
+    },
+    {
+      "id": "d13",
+      "note": "dict with socks5 server",
+      "input": {
+        "form": "parts",
+        "value": {
+          "server": "socks5://gw.example.com:1080"
+        }
+      },
+      "expect": {
+        "server": "socks5://gw.example.com:1080",
+        "username": null,
+        "password": null,
+        "authenticated": false
+      },
+      "basis": "agreed",
+      "playwright_normalizes_input_to": "socks5://gw.example.com:1080"
+    },
+    {
+      "id": "d14",
+      "note": "dict socks5 server embedding creds",
+      "input": {
+        "form": "parts",
+        "value": {
+          "server": "socks5://user:pass@gw.example.com:1080"
+        }
+      },
+      "expect": {
+        "server": "socks5://gw.example.com:1080",
+        "username": "user",
+        "password": "pass",
+        "authenticated": true
+      },
+      "basis": "ruling:python",
+      "observed": {
+        "python": {
+          "server": "socks5://gw.example.com:1080",
+          "username": "user",
+          "password": "pass",
+          "authenticated": true
+        },
+        "node": {
+          "server": "socks5://gw.example.com:1080",
+          "username": null,
+          "password": null,
+          "authenticated": false
+        }
+      },
+      "playwright_normalizes_input_to": "socks5://gw.example.com:1080"
+    },
+    {
+      "id": "d15",
+      "note": "empty server value",
+      "input": {
+        "form": "parts",
+        "value": {
+          "server": ""
+        }
+      },
+      "expect": {
+        "error": "missing_server"
+      },
+      "basis": "agreed",
+      "playwright_normalizes_input_to": "ERROR: Invalid URL"
+    },
+    {
+      "id": "d16",
+      "note": "no 'server' key at all",
+      "input": {
+        "form": "parts",
+        "value": {
+          "username": "u",
+          "password": "p"
+        }
+      },
+      "expect": {
+        "error": "missing_server"
+      },
+      "basis": "agreed",
+      "playwright_normalizes_input_to": "<non-string server>",
+      "unrepresentable": {
+        "rust": "server is a required argument, so it cannot be omitted"
+      }
+    },
+    {
+      "id": "d17",
+      "note": "server is null",
+      "input": {
+        "form": "parts",
+        "value": {
+          "server": null,
+          "username": "u",
+          "password": "p"
+        }
+      },
+      "expect": {
+        "error": "missing_server"
+      },
+      "basis": "ruling:python",
+      "observed": {
+        "python": {
+          "error": "missing_server"
+        },
+        "node": {
+          "server": "http://null",
+          "username": "u",
+          "password": "p",
+          "authenticated": true
+        }
+      },
+      "playwright_normalizes_input_to": "<non-string server>",
+      "unrepresentable": {
+        "rust": "server is a required &str, so a null server cannot be constructed"
+      }
+    },
+    {
+      "id": "d18",
+      "note": "'@' present but only in the query",
+      "input": {
+        "form": "parts",
+        "value": {
+          "server": "http://gw.example.com/?x=@y",
+          "username": null,
+          "password": null
+        }
+      },
+      "expect": {
+        "server": "http://gw.example.com",
+        "username": null,
+        "password": null,
+        "authenticated": false
+      },
+      "basis": "ruling:node",
+      "observed": {
+        "python": {
+          "server": "http://y",
+          "username": "gw.example.com/?x=",
+          "password": null,
+          "authenticated": false
+        },
+        "node": {
+          "server": "http://gw.example.com",
+          "username": null,
+          "password": null,
+          "authenticated": false
+        }
+      },
+      "playwright_normalizes_input_to": "http://gw.example.com"
+    },
+    {
+      "id": "d19",
+      "note": "dict with a bad port",
+      "input": {
+        "form": "parts",
+        "value": {
+          "server": "http://host:notaport",
+          "username": "u",
+          "password": "p"
+        }
+      },
+      "expect": {
+        "error": "invalid_server"
+      },
+      "basis": "agreed",
+      "playwright_normalizes_input_to": "http://http"
+    },
+    {
+      "id": "d20",
+      "note": "non-string credential values",
+      "input": {
+        "form": "parts",
+        "value": {
+          "server": "gw.example.com:8080",
+          "username": 123,
+          "password": 456
+        }
+      },
+      "expect": {
+        "server": "http://gw.example.com:8080",
+        "username": "123",
+        "password": "456",
+        "authenticated": true
+      },
+      "basis": "ruling:node",
+      "observed": {
+        "python": {
+          "server": "http://gw.example.com:8080",
+          "username": 123,
+          "password": 456,
+          "authenticated": true
+        },
+        "node": {
+          "server": "http://gw.example.com:8080",
+          "username": "123",
+          "password": "456",
+          "authenticated": true
+        }
+      },
+      "playwright_normalizes_input_to": "http://gw.example.com:8080",
+      "unrepresentable": {
+        "rust": "credentials are String-typed, so a non-string credential cannot be constructed"
+      }
+    },
+    {
+      "id": "d21",
+      "note": "dict server with surrounding whitespace",
+      "input": {
+        "form": "parts",
+        "value": {
+          "server": "  http://gw.example.com:3128  ",
+          "username": "u",
+          "password": "p"
+        }
+      },
+      "expect": {
+        "server": "http://gw.example.com:3128",
+        "username": "u",
+        "password": "p",
+        "authenticated": true
+      },
+      "basis": "agreed",
+      "playwright_normalizes_input_to": "http://gw.example.com:3128"
+    },
+    {
+      "id": "d22",
+      "note": "dict with IPv6 server",
+      "input": {
+        "form": "parts",
+        "value": {
+          "server": "http://[2001:db8:0:0:0:0:0:1]:8080",
+          "username": "u",
+          "password": "p"
+        }
+      },
+      "expect": {
+        "server": "http://[2001:db8::1]:8080",
+        "username": "u",
+        "password": "p",
+        "authenticated": true
+      },
+      "basis": "agreed",
+      "playwright_normalizes_input_to": "http://[2001:db8::1]:8080"
+    },
+    {
+      "id": "d23",
+      "note": "dict with IDN server",
+      "input": {
+        "form": "parts",
+        "value": {
+          "server": "http://bücher.example:8080",
+          "username": "u",
+          "password": "p"
+        }
+      },
+      "expect": {
+        "server": "http://xn--bcher-kva.example:8080",
+        "username": "u",
+        "password": "p",
+        "authenticated": true
+      },
+      "basis": "agreed",
+      "playwright_normalizes_input_to": "http://xn--bcher-kva.example:8080"
+    },
+    {
+      "id": "d24",
+      "note": "server embeds a username only, no ':'",
+      "input": {
+        "form": "parts",
+        "value": {
+          "server": "http://useronly@gw.example.com:8080"
+        }
+      },
+      "expect": {
+        "server": "http://gw.example.com:8080",
+        "username": "useronly",
+        "password": null,
+        "authenticated": false
+      },
+      "basis": "ruling:python",
+      "observed": {
+        "python": {
+          "server": "http://gw.example.com:8080",
+          "username": "useronly",
+          "password": null,
+          "authenticated": false
+        },
+        "node": {
+          "server": "http://gw.example.com:8080",
+          "username": null,
+          "password": null,
+          "authenticated": false
+        }
+      },
+      "playwright_normalizes_input_to": "http://gw.example.com:8080"
+    }
+  ]
+}

@@ -8,16 +8,19 @@ are version-agnostic and ship on their own cadence to their own registries.
 ```
 chromeleon-clients/
   HANDSHAKE.md       # the ONE spec every client implements — source of truth
-  python/            # → PyPI  pip install chromeleon   (sync + async)
-  node/              # → npm   npm i chromeleon         (async)
-  .github/workflows/ # per-package publish (PyPI + npm Trusted Publishing)
+  python/            # → PyPI      pip install chromeleon    (sync + async)
+  node/              # → npm       npm i chromeleon          (async)
+  rust/              # → crates.io cargo add chromeleon      (async + blocking)
+  conformance/       # one corpus, every client, checked in one place
+  .github/workflows/ # per-package publish (PyPI + npm + crates.io, all OIDC)
 ```
 
 | language | package | status |
 |---|---|---|
 | [Python](python/) | `pip install chromeleon` | available |
 | [Node / TypeScript](node/) | `npm i chromeleon` | available |
-| Java, C#, Go, Rust | — | see [the docs](https://chromeleon.dev/docs) for the raw CDP handshake |
+| [Rust](rust/) | `cargo add chromeleon` | available |
+| Java, C#, Go | — | see [the docs](https://chromeleon.dev/docs) for the raw CDP handshake |
 
 Each client lives in its own directory, versions on its own cadence, and
 publishes to its own registry. Nothing is shared at build time; adding a
@@ -48,21 +51,51 @@ version**. When the handshake changes, bump the spec version and every client's
 **major** together; patch and minor move independently.
 
 The command name and the launch flag are owned by the browser repository, not by
-this one. A contract test there pins them against these clients' constants, so
-renaming either fails the browser build rather than silently breaking proxies in
-a customer's session.
+this one. Contract tests there pin the browser's **own** literals — `tests/unit/
+test_v150_devtools_compile_contract.py` asserts `experimental command
+setProxyCredentials` is in the PDL and that the "must be called first" error text
+survives — so a rename fails the browser build.
+
+⚠️ Nothing compares those literals against **these clients'** constants: no test
+in the browser repository reads this one. The two are kept in step by hand, which
+is a gap worth closing, and until it is, a protocol rename would break customer
+proxies quietly on this side.
 
 ## Installing
 
 ```
-pip install chromeleon          # python/
-npm install chromeleon          # node/
+pip install chromeleon          # python/  — live on PyPI
+npm install chromeleon          # node/    — live on npm
+cargo add chromeleon            # rust/    — live on crates.io
 ```
 
-Both packages implement the same handshake and are held to it by
-`HANDSHAKE.md`. The Node client is fully async, because every driver it wraps
-is; the Python one ships both a sync and an async entry point
-(`new_proxy_context` / `new_proxy_context_async`).
+All three implement the same handshake and are held to it by `HANDSHAKE.md` and
+the shared corpus below. The Node client is fully async, because every driver it
+wraps is; the Python one ships both a sync and an async entry point
+(`new_proxy_context` / `new_proxy_context_async`); the Rust one is
+driver-agnostic — it depends on no browser library — and offers both async and
+blocking forms of the same lock.
+
+## Holding the clients together
+
+[`conformance/`](conformance/) is 94 proxy inputs with the answer every client
+must give, plus a runner that checks all of them at once:
+
+```
+python3 conformance/check.py
+```
+
+The expected answers are not one implementation's opinion. Where Python and Node
+agree, that is the expectation; every expected server string was also checked
+against the driver's own normalizer, because the string a client registers has
+to be a **fixed point** of it or the browser is handed something else. Where the
+two disagree — 20 of the 94 — `conformance/RULINGS.md` decides and records the
+losing behaviour beside it, so a known divergence shows up as `XFAIL` on every
+run instead of quietly becoming the standard.
+
+Current state: rust 91/91 of what its types can express, node 86/94, python
+82/94. The Python and Node gaps are real bugs with severities listed in
+`RULINGS.md`.
 
 ## Adding a language
 
@@ -72,6 +105,26 @@ is; the Python one ships both a sync and an async entry point
 There is nothing to codegen — this is a stateful CDP handshake, not a REST or
 gRPC surface — so each client is a small native implementation held to the
 shared spec.
+
+## Releasing the Rust client
+
+`publish-rust.yml` publishes `rust/` to crates.io with Trusted Publishing, the
+same tokenless OIDC mechanism as the other two.
+
+crates.io follows npm's model rather than PyPI's: there is **no pending
+publisher**, so the first publish of a name must be manual and token-authenticated.
+That has been done — `chromeleon` 0.1.0 exists on crates.io — so the publisher can
+now be attached at crates.io -> the crate -> Settings -> Trusted Publishing (owner
+`TrueCrawl`, repository `chromeleon-clients`, workflow `publish-rust.yml`,
+environment `crates-io`), after which no credential is needed again. The config
+keys on the workflow **filename**.
+
+⚠️ crates.io also refuses to publish at all from an account with **no verified
+email address** — that failure looks like a token problem and is not one.
+
+Release with a `rust-v<version>` tag. The build refuses to publish when the tag
+and `Cargo.toml` disagree — a crates.io version number is permanent, and cannot
+be reused even after a yank.
 
 ## Releasing the Python client
 

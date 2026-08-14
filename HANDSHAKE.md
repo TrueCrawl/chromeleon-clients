@@ -1,9 +1,13 @@
 # The Chromeleon per-context proxy handshake (spec v1)
 
 This is the single source of truth every language client implements. When this
-changes, bump the spec version and move every client's **major** together. A
-shared conformance suite (see `conformance/`) drives each client against a real
-browser + proxy and asserts the behaviour below.
+changes, bump the spec version and move every client's **major** together.
+
+A shared corpus (see [`conformance/`](conformance/)) holds 94 proxy inputs and
+the answer every client must give, and `conformance/check.py` runs all of them
+against it. That covers invariants **1** and **2** below — the two that fail
+silently. Invariant 3 and the launch flags need a browser, so each client
+asserts those in its own suite.
 
 ## What it is
 
@@ -35,10 +39,21 @@ Everything else a client does is convenience around this pair.
    **decode** them before they go on the wire, or you authenticate with the
    wrong secret and it fails silently.
 
-3. **Single-use, no correlation token.** The registration is consumed by the
-   matching `createBrowserContext`. A second registration for the same
-   `(connection, proxyServer)` is **rejected until the first is consumed**, so
-   register→create must be **serialized per `(connection, proxyServer)`**.
+3. **Single-use, and serialized per `(connection, proxyServer)`.** The
+   registration is consumed by the matching `createBrowserContext` — including
+   on a failure, so a retry must preregister again. The connection here is the
+   **root** CDP session: sessions attached to it share one slot, separate
+   WebSockets do not.
+
+   How a second registration for the same pair is treated depends on the
+   browser: **up to v151.4 it is rejected** while one is outstanding; **from
+   v151.5 the reply is deferred** until the slot frees, which serializes the
+   pair browser-side. v151.5 also accepts an optional correlation token,
+   `credentialsId`, paired with `proxyCredentialsId` on the context —
+   registrations carrying one are independent and never queue.
+
+   A client must serialize register→create itself regardless: it cannot know
+   which binary it is talking to, and against v151.4 nothing else will.
    Different servers on the same connection may run concurrently.
 
 4. **HTTP(S) proxies only** for preregistration. An unauthenticated proxy needs
@@ -64,4 +79,11 @@ Everything else a client does is convenience around this pair.
 |---|---|---|
 | Python | `python/` → PyPI `chromeleon` | `new_proxy_context` / `new_proxy_context_async`, `proxy_registration` |
 | Node   | `node/` → npm `chromeleon` | `newProxyContext` (async), `withProxyRegistration` |
+| Rust   | `rust/` → crates.io `chromeleon` | `new_proxy_context_raw` / `new_proxy_context_with`, `proxy_registration` (async + blocking) |
 | _(Go, .NET…)_ | as demand appears | implements this spec |
+
+Where the clients disagree about an input, `conformance/RULINGS.md` says which
+one is right and why. The Rust client follows every ruling — it is the only one
+that passes the whole corpus (91/91 of the cases its types can express) — which
+is a statement about the corpus, not a proof that it implements this whole
+document; invariants 3 and 4 and the launch rules are not corpus-testable.

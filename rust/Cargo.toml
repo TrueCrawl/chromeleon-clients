@@ -1,0 +1,54 @@
+[package]
+name = "chromeleon"
+version = "0.1.0"
+edition = "2021"                # not 2024: that alone would floor the MSRV at 1.85
+rust-version = "1.75"
+description = "Client for driving the Chromeleon browser over CDP: the per-context authenticated proxy handshake"
+# crates.io validates this with spdx 0.13.5 and allow_unknown=false. `LicenseRef-*`
+# is a first-class SPDX token, so this passes; npm's "SEE LICENSE IN LICENSE" would
+# not. The LICENSE file ships either way — cargo includes LICENSE* automatically.
+license = "LicenseRef-Chromeleon-Source-Available"
+authors = ["TrueCrawl"]
+keywords = ["chromeleon", "cdp", "proxy", "chromium", "automation"]
+categories = ["api-bindings", "web-programming"]
+homepage = "https://chromeleon.dev"
+documentation = "https://docs.rs/chromeleon"
+repository = "https://github.com/TrueCrawl/chromeleon-clients"
+readme = "README.md"
+# The library and its examples. `tests/` is deliberately out: it reads the shared
+# cross-language conformance corpus, which lives in the repository one directory
+# up and is not part of a release.
+include = ["src/**/*.rs", "examples/**/*.rs", "README.md", "LICENSE", "Cargo.toml"]
+
+[dependencies]
+# WHATWG URL, which is the point: the server string has to normalize to exactly
+# what a driver's own URL parser produces, or the registration is never consumed.
+url = "2.5"
+percent-encoding = "2.3"
+# Runtime-agnostic async mutex with a blocking form, so the sync and async paths
+# take the SAME registration lock.
+async-lock = "3"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+chromiumoxide = { version = "0.9", optional = true }
+
+[dev-dependencies]
+futures-lite = "2"
+# The chromiumoxide example (0.9 is tokio-based) and the pool timing tests.
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "time"] }
+tungstenite = { version = "0.26", default-features = false, features = ["handshake"] }
+
+[features]
+default = []
+# ⚠️ Raises the MSRV to 1.85: that is chromiumoxide 0.9's own floor, not ours.
+chromiumoxide = ["dep:chromiumoxide"]
+
+[[example]]
+name = "chromiumoxide_proxy_context"
+required-features = ["chromiumoxide"]
+
+[package.metadata.docs.rs]
+# Named rather than all-features: all-features is the commonest way for a crate
+# with heavy optional deps to blow the docs.rs build cap.
+features = ["chromiumoxide"]
+rustdoc-args = ["--cfg", "docsrs"]

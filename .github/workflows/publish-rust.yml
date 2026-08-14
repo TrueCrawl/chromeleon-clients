@@ -1,0 +1,89 @@
+name: publish-rust
+
+# Publishes rust/ to crates.io with a stored API token, `secrets.CRATES_IO_TOKEN`.
+#
+# ⚠️ This is the one workflow in this repository that holds a long-lived
+# credential — the PyPI and npm workflows use Trusted Publishing and store
+# nothing. crates.io supports the same tokenless mechanism, and switching is a
+# small change: drop `rust-lang/crates-io-auth-action@<sha>` in ahead of the
+# publish step, take `CARGO_REGISTRY_TOKEN` from its output, add
+# `permissions: id-token: write`, and register the publisher at crates.io -> the
+# crate -> Settings -> Trusted Publishing (owner TrueCrawl, repository
+# chromeleon-clients, workflow `publish-rust.yml`, environment `crates-io`).
+# That config keys on this file's NAME, so a rename would need it updated too.
+#
+# Until then: rotate CRATES_IO_TOKEN at https://crates.io/settings/tokens
+# whenever it may have been exposed, and scope it to publish-update if the
+# account offers scopes.
+#
+# ⚠️ crates.io refuses to publish at all from an account with no VERIFIED EMAIL
+# ADDRESS — it answers 400 after packaging and the verify build, which reads
+# like a bad token and is not one.
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "rust-v*"
+
+permissions: {}
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: rust
+    permissions:
+      contents: read
+    environment:
+      name: crates-io
+      url: https://crates.io/crates/chromeleon
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # master @ 2026-08-12
+        with:
+          toolchain: stable
+
+      - run: cargo test --locked
+
+      # A tag says what version it claims to be; the manifest says what it is.
+      # crates.io versions are permanent — a yanked version's number can never
+      # be reused — so disagreement stops the run before anything is uploaded.
+      - name: Tag must match the manifest version
+        if: startsWith(github.ref, 'refs/tags/rust-v')
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF_NAME#rust-v}"
+          manifest=$(cargo metadata --no-deps --format-version 1 \
+            | jq -r '.packages[] | select(.name=="chromeleon") | .version')
+          echo "tag=$tag manifest=$manifest"
+          [ "$tag" = "$manifest" ] || {
+            echo "::error::tag $GITHUB_REF_NAME implies $tag but Cargo.toml says $manifest" >&2
+            exit 1
+          }
+
+      # Packages and builds the packaged crate. Needs no credential, and runs
+      # with none in the environment: everything that can fail should fail
+      # before the token is anywhere near the job.
+      - run: cargo publish --dry-run --locked
+
+      - name: The publishing credential must exist
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
+        run: |
+          set -euo pipefail
+          [ -n "${CARGO_REGISTRY_TOKEN}" ] || {
+            echo "::error::CRATES_IO_TOKEN is not set for this repository/environment" >&2
+            exit 1
+          }
+
+      # `--token` is deprecated in cargo; the env var is the supported route.
+      # Never echo it: `set -x` or a failing curl would put it in the log.
+      - run: cargo publish --locked
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}

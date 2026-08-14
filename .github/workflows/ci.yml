@@ -74,3 +74,69 @@ jobs:
           "
           # Tooling reads dependency manifests; exports must not make that fatal.
           node -e "require('chromeleon/package.json')"
+
+  rust:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: rust
+    strategy:
+      matrix:
+        # stable proves the crate works with the versions a consumer resolves;
+        # 1.75 is the declared MSRV, and it only holds with the committed lock —
+        # `url` and `async-lock` both ship newer releases that need 1.85, so a
+        # fresh resolution on 1.75 fails. That is a documented caveat in the
+        # README, and this job is what keeps the number honest rather than
+        # aspirational.
+        toolchain: ["stable", "1.75.0"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.toolchain }}
+          components: ${{ matrix.toolchain == 'stable' && 'rustfmt, clippy' || '' }}
+      - run: cargo build --locked
+      - run: cargo test --locked
+      # The chromiumoxide adapter is off by default and pulls chromiumoxide's own
+      # MSRV (1.85) in with it, so it is a stable-only job — which is also why it
+      # is a feature and not a dependency.
+      - name: chromiumoxide adapter
+        if: matrix.toolchain == 'stable'
+        run: cargo test --locked --features chromiumoxide
+      - name: Lints
+        if: matrix.toolchain == 'stable'
+        run: |
+          cargo fmt --check
+          cargo clippy --all-targets --locked -- -D warnings
+          cargo clippy --all-targets --locked --features chromiumoxide -- -D warnings
+      - name: Docs build clean
+        if: matrix.toolchain == 'stable'
+        env:
+          RUSTDOCFLAGS: -D warnings
+        run: cargo doc --no-deps --locked --features chromiumoxide
+      # The crate must package and build from the packaged form, and it must do
+      # so WITHOUT the repository around it: the conformance corpus lives one
+      # directory up and is deliberately not shipped, so a test that read it at
+      # build time would break every consumer's `cargo package`.
+      - name: Packages cleanly
+        if: matrix.toolchain == 'stable'
+        run: cargo publish --dry-run --locked
+
+  conformance:
+    # The anti-drift job: one corpus, every client, compared in one place.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+      # Fails only on FAIL — a client that stops matching what the corpus
+      # recorded. Known divergences print as XFAIL every run, so they cannot
+      # quietly become the new normal.
+      - run: python3 conformance/check.py
