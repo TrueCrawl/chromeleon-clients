@@ -1,6 +1,6 @@
 [package]
 name = "chromeleon"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"                # not 2024: that alone would floor the MSRV at 1.85
 rust-version = "1.75"
 description = "Client for driving the Chromeleon browser over CDP: the per-context authenticated proxy handshake"
