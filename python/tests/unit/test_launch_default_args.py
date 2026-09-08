@@ -32,3 +32,16 @@ def test_explicit_ignore_default_args_replaces_the_default() -> None:
     chromium = _FakeChromium()
     launch(chromium, "/bin/chrome", ignore_default_args=["--only-this"])
     assert chromium.calls[0]["ignore_default_args"] == ["--only-this"]
+
+
+def test_explicit_empty_ignore_default_args_is_honoured() -> None:
+    """An empty list means "suppress nothing" and must NOT fall back.
+
+    This is the case that separates an identity check from a truthiness one:
+    ``[] or DEFAULT`` silently restores the default and would leave a caller who
+    explicitly opted out running with our switches. The node lib asserts the
+    same thing; the two must not drift.
+    """
+    chromium = _FakeChromium()
+    launch(chromium, "/bin/chrome", ignore_default_args=[])
+    assert chromium.calls[0]["ignore_default_args"] == []

@@ -83,4 +83,19 @@ test('launch suppresses Playwright default args, and the caller can override', a
   await launch(chromium, '/bin/chrome', { ignoreDefaultArgs: ['--only-this'] });
   assert.deepEqual(calls[1].ignoreDefaultArgs, ['--only-this'],
     'an explicit ignoreDefaultArgs must replace the default entirely');
+
+  // An empty list means "suppress nothing" and must NOT fall back. This is the
+  // case that separates an identity check from a truthiness one: `[] || DEFAULT`
+  // silently restores the default and leaves a caller who explicitly opted out
+  // running with our switches. Python asserts the same; the two must not drift.
+  await launch(chromium, '/bin/chrome', { ignoreDefaultArgs: [] });
+  assert.deepEqual(calls[2].ignoreDefaultArgs, [],
+    'an explicit empty ignoreDefaultArgs must be honoured, not replaced');
+
+  // Precedence must be stated, not emergent: other launch options still pass
+  // through while our default stands.
+  await launch(chromium, '/bin/chrome', { headless: false });
+  assert.equal(calls[3].headless, false, 'other launch options must pass through');
+  assert.deepEqual(calls[3].ignoreDefaultArgs, [...SUPPRESSED_DEFAULT_ARGS],
+    'unrelated options must not disturb the default');
 });
