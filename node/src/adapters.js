@@ -76,7 +76,7 @@ function _mergeLaunchArgs(args, extra) {
  * @returns {Promise<*>}  Playwright Browser
  */
 async function launch(chromium, executablePath, options = {}) {
-  const { args, env, captcha, captchaModelPath, ...launchOptions } = options;
+  const { args, env, captcha, captchaModelPath, ignoreDefaultArgs, ...launchOptions } = options;
   const extra = LAUNCH_ARGS.slice();
   if (captcha || captchaModelPath != null) {
     extra.push(...captchaLaunchArgs(captchaModelPath == null ? null : captchaModelPath));
@@ -85,8 +85,14 @@ async function launch(chromium, executablePath, options = {}) {
     executablePath,
     args: _mergeLaunchArgs(args, extra),
     env: browserProcessEnv(env),
-    ignoreDefaultArgs: SUPPRESSED_DEFAULT_ARGS.slice(),
+    // Caller's explicit value wins, ours is only a default -- the same contract
+    // python states with `launch_options.setdefault(...)`. Previously this relied
+    // on `...launchOptions` being spread AFTER the property, which happened to
+    // give the right answer but expressed no intent: reordering the object, or
+    // anyone adding a key here later, would silently flip precedence.
     ...launchOptions,
+    ignoreDefaultArgs:
+      ignoreDefaultArgs === undefined ? SUPPRESSED_DEFAULT_ARGS.slice() : ignoreDefaultArgs,
   });
 }
 
