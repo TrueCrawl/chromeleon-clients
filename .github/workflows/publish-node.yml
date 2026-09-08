@@ -68,4 +68,51 @@ jobs:
 
       # npm versions are immutable: unpublishing is restricted and a version
       # number can never be reused. Fail rather than republish over a re-run.
-      - run: npm publish --access public --provenance
+      #
+      # OIDC needs no secret, but npm can only attach a trusted publisher to a
+      # package that ALREADY exists, so it cannot be configured before the first
+      # release and evidently never was afterwards: 0.2.0 (2026-08-11) and 0.3.0
+      # both failed here with `E404 ... you do not have permission`. If an
+      # NPM_TOKEN exists in the `npm` environment, use it instead.
+      - name: Choose a credential
+        id: cred
+        env:
+          TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -n "${TOKEN:-}" ]; then
+            echo "mode=token" >> "$GITHUB_OUTPUT"
+            echo "Using NPM_TOKEN from the npm environment."
+          else
+            echo "mode=oidc" >> "$GITHUB_OUTPUT"
+            echo "No NPM_TOKEN set; attempting Trusted Publishing (OIDC)."
+          fi
+
+      - name: Publish (OIDC)
+        if: steps.cred.outputs.mode == 'oidc'
+        run: npm publish --access public --provenance
+
+      - name: Publish (token)
+        if: steps.cred.outputs.mode == 'token'
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --access public --provenance
+
+      # A publish job can go green while nothing reaches the registry. Ask npm.
+      - name: Verify the version is actually on npm
+        run: |
+          set -euo pipefail
+          VERSION="${GITHUB_REF_NAME#node-v}"
+          for i in $(seq 1 12); do
+            if curl -sf "https://registry.npmjs.org/chromeleon/${VERSION}" > /dev/null; then
+              echo "chromeleon ${VERSION} is on npm."
+              exit 0
+            fi
+            echo "not visible yet (attempt ${i}/12); waiting..."
+            sleep 10
+          done
+          echo "::error::chromeleon ${VERSION} did NOT reach npm."
+          echo "::error::Fix ONE of these, then re-run this job:"
+          echo "::error::(a) npmjs.com -> package chromeleon -> Settings -> Trusted Publisher -> repo TrueCrawl/chromeleon-clients, workflow publish-node.yml"
+          echo "::error::(b) add an NPM_TOKEN secret (automation token) to this repo's 'npm' environment"
+          exit 1

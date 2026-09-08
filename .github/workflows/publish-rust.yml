@@ -87,3 +87,23 @@ jobs:
       - run: cargo publish --locked
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
+
+      # A publish job can go green while nothing reaches the registry. The
+      # python and node workflows both did exactly that for a month; ask
+      # crates.io rather than trust the exit code.
+      - name: Verify the version is actually on crates.io
+        run: |
+          set -euo pipefail
+          VERSION="${GITHUB_REF_NAME#rust-v}"
+          for i in $(seq 1 12); do
+            if curl -sf -H "User-Agent: chromeleon-clients release check" \
+                 "https://crates.io/api/v1/crates/chromeleon/${VERSION}" > /dev/null; then
+              echo "chromeleon ${VERSION} is on crates.io."
+              exit 0
+            fi
+            echo "not visible yet (attempt ${i}/12); waiting..."
+            sleep 10
+          done
+          echo "::error::chromeleon ${VERSION} did NOT reach crates.io."
+          echo "::error::Check CRATES_IO_TOKEN in this repo's 'crates-io' environment."
+          exit 1
