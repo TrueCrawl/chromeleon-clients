@@ -157,6 +157,112 @@ browser source:
   its events are broadcast to every enabled session in the process, so a
   `solverEval` result cannot be correlated to the call that produced it.
 
+## Page completion
+
+`load` fires when the first document's subresources are in, and says nothing
+about the text you came for. `Chromeleon.waitForSettle` does: it settles when
+the main frame's **rendered text** has been unchanged for a quiet window,
+sampled in the browser process over Blink's inner-text channel — no JavaScript
+in the page, no isolated world, nothing registered on the document, which is the
+point of it over a `MutationObserver` a bot wall can see.
+
+```rust
+use chromeleon::settle::{SettleWatch, WaitOptions};
+
+let mut watch = SettleWatch::arm(session).await?;      // BEFORE the navigation
+page.goto(url).await?;                                 // committing is enough
+let state = watch.wait(WaitOptions::new().timeout_ms(30_000)).await?;
+
+state.outcome        // Settled | Timeout | Challenge | Other(_)
+state.via            // WaitForSettle | NetworkAlmostIdle | Load | Timeout
+state.blocked()      // a bot wall: the classification callers need
+state.elapsed_ms; state.text_length; state.http_status; state.navigations;
+watch.close().await;
+```
+
+Two phases, not one call, because the ordering mistake is fatal and silent: the
+challenge header is recorded at **commit** time by a tracker attached when the
+handler is constructed, so a session attached to an already-committed document
+cannot see it and degrades to status-code-only detection without saying so. A
+one-shot helper called after `goto` would miss everything, so this API cannot
+spell one. `BlockingSettleWatch` is the same thing for synchronous drivers; a
+complete raw-WebSocket example is `examples/settle_wait.rs`.
+
+**Launch with it on.** The domain is registered only under `--page-settle` —
+`Launcher::page_settle(true)`, or `page_settle_tuning(SettleTuning::new()…)` for
+the quiet window, min-chars, timeout, sample interval and shadow-piercing
+switches. Without it the command is an *unknown method* (`-32601`), not
+"settling is off". Like `--captcha-solver` it is deliberately **not** in
+`LAUNCH_ARGS`: it changes what the browser does, so it is opt-in.
+
+### Why this order
+
+Measured over 960 navigations, 80 sites, 3 rounds:
+
+| | direct p50 | direct never | proxied p50 | proxied never |
+|---|---|---|---|---|
+| `networkAlmostIdle` | 3,989ms | 1% | 11,285ms | 36% |
+| `Chromeleon.waitForSettle` | 7,306ms | 6% | 12,108ms | 7% |
+
+`waitForSettle` is the primary because **through a proxy** — which is what this
+client is for — `networkAlmostIdle` never fires on more than a third of loads,
+against 7%. On a direct connection `networkAlmostIdle` is 1.8x faster for the
+same median content, which is why it stays available and is the documented
+choice for un-proxied work: `WaitOptions::new().prefer_lifecycle(true)`. On
+completeness, direct: `waitForSettle` reproduced the final text exactly on 79%
+of loads, `networkAlmostIdle` 59%, the load event 40%, `domcontentloaded` 7%.
+
+### What the fallback gets right
+
+When the command is unavailable (`-32601`) or answers something unreadable, the
+watch falls back **without raising** — a page that never settles is a normal
+outcome on proxied traffic, not an exception — to a main-frame,
+non-stale `networkAlmostIdle`, then the `load` event, then `Timeout`. `via` says
+which, so a fleet quietly running on the weaker signal is visible in a log line
+rather than in a month of thin extractions. Two rules it enforces, both of which
+were silent wrong answers before they were rules:
+
+- **The `about:blank` replay is discarded.** `Page.setLifecycleEventsEnabled`
+  replays a *complete* lifecycle for the document the tab is already on, so
+  arming records every loader seen in its first 350ms as stale. Keep them and
+  every fallback signal reads as ~0ms — an instant, wrong "settled".
+- **Subframes never answer for the page.** `bbc.com/news` emits lifecycle from
+  23 frames; first-across-all reports `networkIdle` at 699ms when the main
+  frame's real value is 6094ms. Only `frameId == the main frame` counts, which
+  is why a session that cannot name its main frame is refused at **arm** time.
+
+### Blocked is not a slow page
+
+`state.blocked()` is `outcome == Challenge` **or** an
+`http_status` in {401, 403, 407, 429, 503} — 12.5% of proxied navigations in
+production measurement. Both halves are load-bearing: a wall shorter than
+`--page-settle-min-chars` never reaches the `challenge` outcome, it reports
+`timeout` with the 403 still on the committed document, and a caller switching
+on the outcome alone retries straight back into it.
+
+### Supplying the session
+
+This crate depends on no browser library, so a watch cannot own a CDP session
+any more than the handshake can own a connection: implement `PageSession` (or
+`BlockingPageSession`) over your driver. Two methods, and the second is where
+the runtime choice stays yours:
+
+```rust
+impl PageSession for MySession {
+    type Error = MyError;                       // only has to absorb chromeleon::Error
+
+    async fn send(&self, method: &'static str, params: Value) -> Result<Value, MyError> {
+        self.cdp.call(method, params).await     // result object or whole envelope, either way
+    }
+
+    async fn next_event(&self, timeout: Duration) -> Option<(String, Value)> {
+        // must be buffered from before the session was handed over, and
+        // cancel-safe: a dropped `next_event` must not swallow an event
+        tokio::time::timeout(timeout, self.events.lock().await.recv()).await.ok().flatten()
+    }
+}
+```
+
 ## API
 
 | | |
@@ -169,6 +275,8 @@ browser source:
 | `ProxySpec` | a parsed proxy; its server is always normalized |
 | `normalize_server`, `parse_proxy`, `check_registration` | the pieces, if you want them |
 | `captcha::*` | solver switches, CDP methods, typed events |
+| `settle::SettleWatch` / `BlockingSettleWatch` | page completion: arm, then wait (also `LifecycleTracker` on its own) |
+| `settle::settle_launch_args`, `Launcher::page_settle` | `--page-settle` and its tuning switches |
 | `perf::sticky_geo_env`, `perf::BrowserPool` | launch-latency helpers |
 | `oxide::*` (feature) | chromiumoxide adapter: contexts, raw commands, typed events |
 

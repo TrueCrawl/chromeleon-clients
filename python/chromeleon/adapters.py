@@ -31,6 +31,7 @@ from chromeleon.core import (
     proxy_registration,
     solver_eval_params,
 )
+from chromeleon.settle import settle_launch_args
 
 __all__ = ["launch", "new_proxy_context", "new_proxy_context_async",
            "browser_process_env",
@@ -42,6 +43,7 @@ def launch(chromium: Any, executable_path: str, *,
            env: dict[str, str] | None = None,
            captcha: bool = False,
            captcha_model_path: str | None = None,
+           page_settle: bool | dict[str, Any] = False,
            **launch_options: Any) -> Any:
     """Launch Chromeleon. Returns a normal Playwright ``Browser``.
 
@@ -61,11 +63,23 @@ def launch(chromium: Any, executable_path: str, *,
     :func:`enable_captcha` and the ``CAPTCHA_*`` events. ``captcha_model_path``
     is a dev/self-host override (the release binary embeds the models) and
     implies ``captcha``. A flag you set yourself in ``args`` always wins.
+
+    ``page_settle=True`` registers the ``Chromeleon.waitForSettle`` command that
+    :func:`chromeleon.settle_watch` prefers; a dict tunes it, e.g.
+    ``page_settle={"quiet_window_ms": 2500, "pierce_shadow": True}`` (see
+    :func:`chromeleon.settle_launch_args` for the field names). It is opt-in
+    because it changes how the browser behaves, which is also why it is not in
+    ``LAUNCH_ARGS``.
     """
     merged = list(args or [])
     extra = list(LAUNCH_ARGS)
     if captcha or captcha_model_path is not None:
         extra.extend(captcha_launch_args(captcha_model_path))
+    # Identity, not truthiness: page_settle={} means "on, no tuning", and a
+    # `if page_settle:` here would silently drop it.
+    if page_settle is not False and page_settle is not None:
+        extra.extend(settle_launch_args(
+            **(page_settle if isinstance(page_settle, dict) else {})))
     for flag in extra:
         switch = flag.split("=", 1)[0]
         if not any(a.split("=", 1)[0] == switch for a in merged):

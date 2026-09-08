@@ -83,6 +83,34 @@
 //! is only for watching it: enable the `Chromeleon` domain on a page session and
 //! parse the lifecycle events with [`CaptchaEvent::parse`].
 //!
+//! # Page completion
+//!
+//! "The page has finished" is [`settle`]: `Chromeleon.waitForSettle` settles on
+//! the main frame's rendered TEXT going quiet, with no JavaScript in the page,
+//! and Blink's `networkAlmostIdle` is the fallback for a browser launched
+//! without `--page-settle`. Arm the watch BEFORE the navigation — a session
+//! attached to an already-committed document cannot see the challenge header,
+//! and degrades to status-code-only detection without saying so.
+//!
+//! ```no_run
+//! # use std::time::Duration;
+//! # use serde_json::Value;
+//! # use chromeleon::settle::{PageSession, SettleWatch, WaitOptions};
+//! # struct Session;
+//! # impl PageSession for Session {
+//! #     type Error = chromeleon::Error;
+//! #     async fn send(&self, _m: &'static str, _p: Value) -> Result<Value, Self::Error> { unimplemented!() }
+//! #     async fn next_event(&self, _t: Duration) -> Option<(String, Value)> { None }
+//! # }
+//! # async fn demo(session: Session) -> Result<(), chromeleon::Error> {
+//! let mut watch = SettleWatch::arm(session).await?;    // before the goto
+//! // …navigate…
+//! let state = watch.wait(WaitOptions::new().timeout_ms(30_000)).await?;
+//! if state.blocked() { /* a bot wall, not a page */ }
+//! watch.close().await;
+//! # Ok(()) }
+//! ```
+//!
 //! # What this crate is held to
 //!
 //! `HANDSHAKE.md` in the [clients
@@ -101,6 +129,7 @@ pub mod core;
 pub mod launch;
 pub mod perf;
 pub mod registration;
+pub mod settle;
 
 #[cfg(feature = "chromiumoxide")]
 #[cfg_attr(docsrs, doc(cfg(feature = "chromiumoxide")))]
@@ -137,6 +166,13 @@ pub use crate::captcha::{
     captcha_launch_args, solver_eval_params, CaptchaEvent, SolveMethod, CAPTCHA_DETECTED,
     CAPTCHA_EVENTS, CAPTCHA_FAILED, CAPTCHA_SOLVED, CAPTCHA_SOLVER_SWITCH, CAPTCHA_SOLVING,
     DISABLE_METHOD, ENABLE_METHOD, SOLVER_EVAL_METHOD, SOLVER_EVAL_RESULT,
+};
+
+#[doc(inline)]
+pub use crate::settle::{
+    settle_launch_args, BlockingPageSession, BlockingSettleWatch, LifecycleTracker, PageSession,
+    SettleOutcome, SettleState, SettleTuning, SettleVia, SettleWatch, WaitOptions,
+    NETWORK_ALMOST_IDLE, PAGE_SETTLE_SWITCH, WAIT_FOR_SETTLE_METHOD,
 };
 
 /// The `HANDSHAKE.md` spec version this client implements.

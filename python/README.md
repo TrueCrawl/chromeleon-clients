@@ -102,6 +102,90 @@ page.goto("https://example.com/with-a-recaptcha")
 isolated world (pierces **closed** shadow roots); its result arrives on the
 `SOLVER_EVAL_RESULT` event.
 
+## Knowing when the page is done
+
+Chromeleon settles a page in the **browser process**, on the main frame's
+*rendered text*, sampled over Blink's inner-text channel — no injected script, no
+isolated world, nothing registered on the document. Launch with it on, arm the
+watch **around** the navigation, and ask what happened:
+
+```python
+from chromeleon import launch, settle_watch
+
+browser = launch(p.chromium, CHROMELEON, page_settle=True)
+page = browser.new_page()
+
+with settle_watch(page) as watch:                 # attaches CDP BEFORE the nav
+    page.goto(url, wait_until="commit")
+    state = watch.wait(timeout_ms=30_000)
+
+if state.blocked:                                 # a bot wall, not a page
+    rotate_exit_and_retry()
+else:
+    html = page.content()
+```
+
+`async with settle_watch(page)` is the asyncio form of the same object (or spell
+it `settle_watch_async(page)`); inside it, `await watch.wait(...)`.
+
+The two phases are the API on purpose. The challenge header is recorded at
+**commit** time by a tracker attached when the handler is constructed, so a
+session attached after `goto` returns cannot see it and degrades silently to
+status-code-only detection — a one-shot `wait_for_settle(page)` would be the
+shape that cannot be used correctly, so there is not one.
+
+`state` is a `SettleState`:
+
+| field | |
+|---|---|
+| `outcome` | `"settled"` \| `"timeout"` \| `"challenge"` |
+| `blocked` | `outcome == "challenge"` **or** `http_status` in 401/403/407/429/503 |
+| `elapsed_ms` | from the browser's own clock when it settled |
+| `text_length` | rendered characters at settle |
+| `navigations` | documents committed during the wait |
+| `http_status` | the committed document's status |
+| `via` | `"waitForSettle"` \| `"networkAlmostIdle"` \| `"load"` \| `"timeout"` |
+
+`outcome == "challenge"` is a **bot wall** — 12.5% of proxied navigations in
+production measurement — and is never reported as a successful load. A wall
+shorter than `minChars` comes back as `"timeout"` instead, but the status is
+still 403/429/…, which is why `blocked` checks both.
+
+### The fallback, and why this order
+
+Launched without `--page-settle`, the command is `-32601 method not found`; the
+watch falls back to Blink's `networkAlmostIdle` lifecycle signal (≤2 in-flight
+requests for 500 ms) without raising, then to the `load` event, then reports
+`via="timeout"`. `state.via` always says which path answered.
+
+Measured over 960 navigations, 80 sites, 3 rounds:
+
+| | direct p50 | direct never | proxied p50 | proxied never |
+|---|---|---|---|---|
+| `networkAlmostIdle` | 3,989 ms | 1% | 11,285 ms | **36%** |
+| `Chromeleon.waitForSettle` | 7,306 ms | 6% | 12,108 ms | **7%** |
+
+**Through a proxy — what this client is for — `networkAlmostIdle` never fires on
+more than a third of loads**, so the command is the primary. Direct,
+`networkAlmostIdle` is 1.8x faster for the same median content, so it stays
+available: `settle_watch(page, prefer="networkAlmostIdle")` skips the command
+outright, and is the documented choice for un-proxied work. On completeness
+(direct), `waitForSettle` reproduced the final text exactly on 79% of loads,
+`networkAlmostIdle` 59%, `load` 40%, `domcontentloaded` 7%.
+
+Fallback events are counted **only** from the main frame, and only for a loader
+that is not the incumbent's: `Page.setLifecycleEventsEnabled` replays a full
+lifecycle for the about:blank you were sitting on (arming discards it), and
+bbc.com/news emits lifecycle from 23 frames — first-across-all-frames reports
+`networkIdle` at 699 ms where the main frame's real value is 6094 ms.
+
+`page_settle=True` is opt-in because it changes how the browser behaves; it is
+not in `LAUNCH_ARGS`. Tune it with a dict — `page_settle={"quiet_window_ms":
+2500, "min_chars": 400, "timeout_ms": 20000, "sample_interval_ms": 100,
+"pierce_shadow": True}` — or build the flags yourself with
+`settle_launch_args(...)`. Per call, `watch.wait(timeout_ms=…,
+quiet_window_ms=…, min_chars=…)` overrides them for that navigation.
+
 ## API
 
 | | |
@@ -116,6 +200,10 @@ isolated world (pierces **closed** shadow roots); its result arrives on the
 | `launch(..., captcha=True)` | turn on the built-in captcha solver |
 | `enable_captcha(cdp)` / `disable_captcha(cdp)` | `Chromeleon` captcha lifecycle events |
 | `solver_eval(cdp, expr, frame="")` | eval in the solver's isolated world (pierces closed shadow roots) |
+| `settle_watch(page)` / `settle_watch_async(page)` | arm a page-completion watch around a navigation |
+| `watch.wait(timeout_ms=30000)` | `SettleState`: `outcome`, `blocked`, `elapsed_ms`, `text_length`, `via`, … |
+| `launch(..., page_settle=True)` | register `Chromeleon.waitForSettle` (opt-in) |
+| `settle_launch_args(**tuning)` | the `--page-settle*` flags, if you launch the binary yourself |
 
 `proxy` may be a URL (`http://user:pass@host:port`, scheme optional), a
 Playwright-style dict, or a `ProxySpec`. Credentials inside a URL are

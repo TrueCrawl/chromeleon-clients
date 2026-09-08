@@ -110,6 +110,19 @@ pub enum Error {
         /// The `error` member the browser returned.
         detail: String,
     },
+
+    /// `Page.getFrameTree` named no main frame, so a
+    /// [`SettleWatch`](crate::settle::SettleWatch) cannot tell the main frame's
+    /// lifecycle from a subframe's.
+    ///
+    /// Refused rather than guessed, and refused at ARM time, before anything is
+    /// navigated: `bbc.com/news` emits lifecycle from 23 frames, and a watch
+    /// that counts the first of them reports `networkIdle` at 699ms for a page
+    /// whose real value is 6094ms.
+    MissingMainFrame {
+        /// What the session answered instead.
+        detail: String,
+    },
 }
 
 impl fmt::Display for Error {
@@ -141,6 +154,13 @@ impl fmt::Display for Error {
             }
             Error::RegistrationRefused { detail } => {
                 write!(f, "proxy credential registration refused: {detail}")
+            }
+            Error::MissingMainFrame { detail } => {
+                write!(
+                    f,
+                    "this page session named no main frame, so main-frame and subframe \
+                     lifecycle cannot be told apart: {detail}"
+                )
             }
         }
     }

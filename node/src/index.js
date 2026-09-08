@@ -29,6 +29,14 @@
  *
  * The built-in captcha solver runs on its own once enabled at launch; the
  * `Chromeleon` CDP domain re-exported here only observes and steers it.
+ *
+ * Page completion is two-phase, and the CDP session has to be attached BEFORE
+ * the navigation it measures:
+ *
+ *     const watch = await settleWatch(page);
+ *     await page.goto(url, { waitUntil: 'commit' });
+ *     const state = await watch.wait({ timeoutMs: 30000 });
+ *     if (state.blocked) { ... }            // a bot wall, not a page
  */
 const {
   LAUNCH_ARGS,
@@ -54,6 +62,34 @@ const {
   captchaLaunchArgs,
   solverEvalParams,
 } = require('./core');
+const {
+  PAGE_SETTLE_SWITCH,
+  PAGE_SETTLE_QUIET_WINDOW_SWITCH,
+  PAGE_SETTLE_MIN_CHARS_SWITCH,
+  PAGE_SETTLE_TIMEOUT_SWITCH,
+  PAGE_SETTLE_SAMPLE_INTERVAL_SWITCH,
+  PAGE_SETTLE_PIERCE_SHADOW_SWITCH,
+  WAIT_FOR_SETTLE_METHOD,
+  LIFECYCLE_EVENT,
+  NETWORK_ALMOST_IDLE,
+  NETWORK_IDLE,
+  OUTCOME_SETTLED,
+  OUTCOME_TIMEOUT,
+  OUTCOME_CHALLENGE,
+  SETTLE_OUTCOMES,
+  VIA_WAIT_FOR_SETTLE,
+  VIA_NETWORK_ALMOST_IDLE,
+  VIA_LOAD,
+  VIA_TIMEOUT,
+  BLOCKED_STATUSES,
+  REPLAY_WINDOW_MS,
+  DEFAULT_TIMEOUT_MS,
+  SettleState,
+  SettleWatch,
+  settleLaunchArgs,
+  settleWatch,
+  waitForSettleParams,
+} = require('./settle');
 const {
   launch,
   browserProcessEnv,
@@ -104,4 +140,31 @@ module.exports = {
   enableCaptcha,
   disableCaptcha,
   solverEval,
+  // page completion (Chromeleon.waitForSettle, networkAlmostIdle fallback)
+  PAGE_SETTLE_SWITCH,
+  PAGE_SETTLE_QUIET_WINDOW_SWITCH,
+  PAGE_SETTLE_MIN_CHARS_SWITCH,
+  PAGE_SETTLE_TIMEOUT_SWITCH,
+  PAGE_SETTLE_SAMPLE_INTERVAL_SWITCH,
+  PAGE_SETTLE_PIERCE_SHADOW_SWITCH,
+  WAIT_FOR_SETTLE_METHOD,
+  LIFECYCLE_EVENT,
+  NETWORK_ALMOST_IDLE,
+  NETWORK_IDLE,
+  OUTCOME_SETTLED,
+  OUTCOME_TIMEOUT,
+  OUTCOME_CHALLENGE,
+  SETTLE_OUTCOMES,
+  VIA_WAIT_FOR_SETTLE,
+  VIA_NETWORK_ALMOST_IDLE,
+  VIA_LOAD,
+  VIA_TIMEOUT,
+  BLOCKED_STATUSES,
+  REPLAY_WINDOW_MS,
+  DEFAULT_TIMEOUT_MS,
+  SettleState,
+  SettleWatch,
+  settleLaunchArgs,
+  settleWatch,
+  waitForSettleParams,
 };

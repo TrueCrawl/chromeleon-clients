@@ -37,6 +37,16 @@ test('every documented export is name-importable from ESM', async () => {
     'CAPTCHA_SOLVING', 'CAPTCHA_SOLVED', 'CAPTCHA_FAILED',
     'SOLVER_EVAL_RESULT', 'CAPTCHA_EVENTS', 'captchaLaunchArgs',
     'solverEvalParams', 'enableCaptcha', 'disableCaptcha', 'solverEval',
+    // page completion
+    'PAGE_SETTLE_SWITCH', 'PAGE_SETTLE_QUIET_WINDOW_SWITCH',
+    'PAGE_SETTLE_MIN_CHARS_SWITCH', 'PAGE_SETTLE_TIMEOUT_SWITCH',
+    'PAGE_SETTLE_SAMPLE_INTERVAL_SWITCH', 'PAGE_SETTLE_PIERCE_SHADOW_SWITCH',
+    'WAIT_FOR_SETTLE_METHOD', 'LIFECYCLE_EVENT', 'NETWORK_ALMOST_IDLE',
+    'NETWORK_IDLE', 'OUTCOME_SETTLED', 'OUTCOME_TIMEOUT', 'OUTCOME_CHALLENGE',
+    'SETTLE_OUTCOMES', 'VIA_WAIT_FOR_SETTLE', 'VIA_NETWORK_ALMOST_IDLE',
+    'VIA_LOAD', 'VIA_TIMEOUT', 'BLOCKED_STATUSES', 'REPLAY_WINDOW_MS',
+    'DEFAULT_TIMEOUT_MS', 'SettleState', 'SettleWatch', 'settleLaunchArgs',
+    'settleWatch', 'waitForSettleParams',
   ];
 
   const missing = expected.filter((name) => ns[name] === undefined);
