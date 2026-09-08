@@ -102,9 +102,58 @@ jobs:
           name: python-dist
           path: dist/
 
+      # Trusted Publishing (OIDC) needs no secret and is the right end state,
+      # but it only works once a publisher is registered on PyPI. Until then it
+      # fails with a claim mismatch that reads like a code error -- which is
+      # exactly what happened to 0.2.0 on 2026-08-11 and again to 0.3.0. If a
+      # PYPI_API_TOKEN exists in the `pypi` environment, use it instead, so a
+      # release is never blocked on a registry console being configured.
+      - name: Choose a credential
+        id: cred
+        env:
+          TOKEN: ${{ secrets.PYPI_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -n "${TOKEN:-}" ]; then
+            echo "mode=token" >> "$GITHUB_OUTPUT"
+            echo "Using PYPI_API_TOKEN from the pypi environment."
+          else
+            echo "mode=oidc" >> "$GITHUB_OUTPUT"
+            echo "No PYPI_API_TOKEN set; attempting Trusted Publishing (OIDC)."
+          fi
+
       - uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # release/v1
+        if: steps.cred.outputs.mode == 'oidc'
         with:
           # Uploads are immutable: a version number can never be reused, even
           # after deletion. Fail rather than paper over a re-run.
           skip-existing: false
           print-hash: true
+
+      - uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # release/v1
+        if: steps.cred.outputs.mode == 'token'
+        with:
+          password: ${{ secrets.PYPI_API_TOKEN }}
+          skip-existing: false
+          print-hash: true
+
+      # A publish job can go green while nothing reaches the registry. Both
+      # 0.2.0 publish runs failed on 2026-08-11 and it went unnoticed for a
+      # month, because nothing ever asked PyPI whether the version was there.
+      - name: Verify the version is actually on PyPI
+        run: |
+          set -euo pipefail
+          VERSION="${GITHUB_REF_NAME#python-v}"
+          for i in $(seq 1 12); do
+            if curl -sf "https://pypi.org/pypi/chromeleon/${VERSION}/json" > /dev/null; then
+              echo "chromeleon ${VERSION} is on PyPI."
+              exit 0
+            fi
+            echo "not visible yet (attempt ${i}/12); waiting..."
+            sleep 10
+          done
+          echo "::error::chromeleon ${VERSION} did NOT reach PyPI."
+          echo "::error::Fix ONE of these, then re-run this job:"
+          echo "::error::(a) register a Trusted Publisher at https://pypi.org/manage/project/chromeleon/settings/publishing/ -- owner TrueCrawl, repo chromeleon-clients, workflow publish-python.yml, environment pypi"
+          echo "::error::(b) add a PYPI_API_TOKEN secret to this repo's 'pypi' environment"
+          exit 1
