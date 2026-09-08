@@ -23,7 +23,8 @@ chromeleon-clients/
 | Java, C#, Go | — | see [the docs](https://chromeleon.dev/docs) for the raw CDP handshake |
 
 Each client lives in its own directory, versions on its own cadence, and
-publishes to its own registry. Nothing is shared at build time; adding a
+publishes to its own registry. Releases are cut by pushing a
+tag — see [RELEASING.md](RELEASING.md). Nothing is shared at build time; adding a
 language means adding a directory and a CI job.
 
 ## What a client is for

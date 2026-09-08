@@ -102,12 +102,15 @@ jobs:
           name: python-dist
           path: dist/
 
-      # Trusted Publishing (OIDC) needs no secret and is the right end state,
-      # but it only works once a publisher is registered on PyPI. Until then it
-      # fails with a claim mismatch that reads like a code error -- which is
-      # exactly what happened to 0.2.0 on 2026-08-11 and again to 0.3.0. If a
-      # PYPI_API_TOKEN exists in the `pypi` environment, use it instead, so a
-      # release is never blocked on a registry console being configured.
+      # PYPI_API_TOKEN in the `pypi` environment is the primary path, matching
+      # publish-rust. OIDC is kept as the fallback for whenever a Trusted
+      # Publisher is registered, at which point deleting the secret switches
+      # over with no code change.
+      #
+      # We are token-first because OIDC silently did not work: 0.2.0
+      # (2026-08-11) and 0.3.0 both failed with a claim mismatch that reads like
+      # a code error, and 0.2.0 reached PyPI by some other route while the
+      # workflow stayed red and unnoticed for a month. See RELEASING.md.
       - name: Choose a credential
         id: cred
         env:

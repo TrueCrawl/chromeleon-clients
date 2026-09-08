@@ -69,11 +69,15 @@ jobs:
       # npm versions are immutable: unpublishing is restricted and a version
       # number can never be reused. Fail rather than republish over a re-run.
       #
-      # OIDC needs no secret, but npm can only attach a trusted publisher to a
-      # package that ALREADY exists, so it cannot be configured before the first
-      # release and evidently never was afterwards: 0.2.0 (2026-08-11) and 0.3.0
-      # both failed here with `E404 ... you do not have permission`. If an
-      # NPM_TOKEN exists in the `npm` environment, use it instead.
+      # NPM_TOKEN in the `npm` environment is the primary path, matching
+      # publish-rust. OIDC stays as the fallback for whenever a Trusted
+      # Publisher is attached.
+      #
+      # We are token-first because OIDC cannot work here by construction until
+      # someone attaches a publisher by hand: npm only allows that on a package
+      # that ALREADY exists, so the first release could never have used it, and
+      # it was evidently never attached afterwards. 0.2.0 (2026-08-11) and 0.3.0
+      # both failed with `E404 ... you do not have permission`. See RELEASING.md.
       - name: Choose a credential
         id: cred
         env:
