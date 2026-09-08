@@ -39,6 +39,20 @@ reCAPTCHA/hCaptcha automatically; watch it over a page CDP session:
     cdp.on(CAPTCHA_FAILED, lambda p: print("failed", p["reason"]))
     page.goto("https://example.com/with-a-recaptcha")
 
+Knowing when a page is DONE is its own problem, and Chromeleon answers it in the
+browser process over the rendered text — arm the watch around the navigation, so
+attaching cannot be late:
+
+    from chromeleon import launch, settle_watch
+
+    browser = launch(p.chromium, CHROMELEON, page_settle=True)
+    page = browser.new_page()
+    with settle_watch(page) as watch:
+        page.goto(url, wait_until="commit")
+        state = watch.wait(timeout_ms=30000)
+    if state.blocked:
+        ...                                  # a bot wall, not a page
+
 Playwright objects go in and come back out unchanged; this does not wrap
 ``launch`` or own the browser.
 """
@@ -78,6 +92,29 @@ from chromeleon.perf import (  # noqa: F401
     BrowserPool,
     sticky_geo_env,
 )
+from chromeleon.settle import (  # noqa: F401
+    BLOCKED_STATUSES,
+    DEFAULT_TIMEOUT_MS,
+    LIFECYCLE_EVENT,
+    OUTCOME_CHALLENGE,
+    OUTCOME_SETTLED,
+    OUTCOME_TIMEOUT,
+    PAGE_SETTLE_SWITCH,
+    REPLAY_WINDOW_MS,
+    SETTLE_OUTCOMES,
+    VIA_LOAD,
+    VIA_NETWORK_ALMOST_IDLE,
+    VIA_TIMEOUT,
+    VIA_WAIT_FOR_SETTLE,
+    WAIT_FOR_SETTLE_METHOD,
+    AsyncSettleWatch,
+    SettleState,
+    SettleWatch,
+    settle_launch_args,
+    settle_watch,
+    settle_watch_async,
+    wait_for_settle_params,
+)
 
 __all__ = [
     "CREDENTIALS_METHOD",
@@ -111,4 +148,26 @@ __all__ = [
     "enable_captcha",
     "disable_captcha",
     "solver_eval",
+    # Page completion (Chromeleon.waitForSettle, networkAlmostIdle fallback).
+    "PAGE_SETTLE_SWITCH",
+    "WAIT_FOR_SETTLE_METHOD",
+    "LIFECYCLE_EVENT",
+    "OUTCOME_SETTLED",
+    "OUTCOME_TIMEOUT",
+    "OUTCOME_CHALLENGE",
+    "SETTLE_OUTCOMES",
+    "VIA_WAIT_FOR_SETTLE",
+    "VIA_NETWORK_ALMOST_IDLE",
+    "VIA_LOAD",
+    "VIA_TIMEOUT",
+    "BLOCKED_STATUSES",
+    "REPLAY_WINDOW_MS",
+    "DEFAULT_TIMEOUT_MS",
+    "SettleState",
+    "SettleWatch",
+    "AsyncSettleWatch",
+    "settle_watch",
+    "settle_watch_async",
+    "settle_launch_args",
+    "wait_for_settle_params",
 ]

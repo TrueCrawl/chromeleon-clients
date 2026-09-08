@@ -28,6 +28,7 @@ const {
   solverEvalParams,
   withProxyRegistration,
 } = require('./core');
+const { settleLaunchArgs } = require('./settle');
 
 /**
  * Launch environment with controller-side proxy variables removed. HTTP_PROXY /
@@ -70,9 +71,16 @@ function _mergeLaunchArgs(args, extra) {
  * and the `CAPTCHA_*` events. `captchaModelPath` is a dev/self-host override (the
  * release binary embeds the models) and implies `captcha`. A flag you already
  * set in `args` always wins.
+ *
+ * `pageSettle: true` registers `Chromeleon.waitForSettle` (`--page-settle`), the
+ * primary signal behind `settleWatch()`; pass an object
+ * (`{quietWindowMs, minChars, timeoutMs, sampleIntervalMs, pierceShadow}`) to
+ * tune the sampler. It is opt-in because it changes browser behaviour, so it is
+ * not in `LAUNCH_ARGS` and a browser launched without it answers -32601.
  * @param {*} chromium  playwright's `chromium` browser type
  * @param {string} executablePath  path to the Chromeleon binary
- * @param {object=} options  { args, env, captcha, captchaModelPath, ...launchOptions }
+ * @param {object=} options  { args, env, captcha, captchaModelPath, pageSettle,
+ *                             ...launchOptions }
  * @returns {Promise<*>}  Playwright Browser
  */
 async function launch(chromium, executablePath, options = {}) {
@@ -80,6 +88,13 @@ async function launch(chromium, executablePath, options = {}) {
   const extra = LAUNCH_ARGS.slice();
   if (captcha || captchaModelPath != null) {
     extra.push(...captchaLaunchArgs(captchaModelPath == null ? null : captchaModelPath));
+  }
+  // `pageSettle` is ours, not the driver's: take it out of the pass-through
+  // options before they reach Playwright, which rejects keys it does not know.
+  const pageSettle = launchOptions.pageSettle;
+  delete launchOptions.pageSettle;
+  if (pageSettle) {
+    extra.push(...settleLaunchArgs(pageSettle === true ? {} : pageSettle));
   }
   return chromium.launch({
     executablePath,

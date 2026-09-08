@@ -14,6 +14,12 @@
 //!   controller's; inheriting them routes browser traffic somewhere you did not
 //!   choose.
 //!
+//! Two features are OPT-IN because they change what the browser does, and both
+//! are switched on here rather than in [`LAUNCH_ARGS`]: the captcha solver
+//! ([`Launcher::captcha`]) and page-settle
+//! ([`Launcher::page_settle`], which registers `Chromeleon.waitForSettle` —
+//! without it the command is an unknown method, see [`crate::settle`]).
+//!
 //! [`Launcher`] gives you a `std::process::Command` with all of that applied,
 //! which suits the way Rust drives browsers: spawn Chromeleon with
 //! `--remote-debugging-port` and attach over CDP. If your driver spawns the
@@ -214,6 +220,7 @@ pub struct Launcher {
     inherit_env: bool,
     captcha: bool,
     captcha_model_path: Option<String>,
+    page_settle: Option<crate::settle::SettleTuning>,
     debugging_port: Option<u16>,
 }
 
@@ -227,6 +234,7 @@ impl Launcher {
             inherit_env: true,
             captcha: false,
             captcha_model_path: None,
+            page_settle: None,
             debugging_port: None,
         }
     }
@@ -301,6 +309,40 @@ impl Launcher {
         self
     }
 
+    /// Register the page-settle CDP domain (`--page-settle`).
+    ///
+    /// ⚠️ Without it `Chromeleon.waitForSettle` is not merely off — the domain
+    /// is never registered, so the command answers `-32601`, *method not
+    /// found*, and [`SettleWatch`](crate::settle::SettleWatch) falls back to
+    /// Blink's `networkAlmostIdle`. Through a proxy that fallback never fires
+    /// on 36% of loads, so a fleet that forgets this switch is a fleet running
+    /// on the weaker signal.
+    ///
+    /// ```
+    /// # use chromeleon::launch::Launcher;
+    /// let args = Launcher::new("/opt/chromeleon/chrome").page_settle(true).build_args();
+    /// assert!(args.contains(&"--page-settle".to_string()));
+    /// ```
+    pub fn page_settle(mut self, on: bool) -> Self {
+        self.page_settle = on.then(|| self.page_settle.unwrap_or_default());
+        self
+    }
+
+    /// Register page-settle and tune it. Implies [`Launcher::page_settle`].
+    ///
+    /// ```
+    /// # use chromeleon::launch::Launcher;
+    /// # use chromeleon::settle::SettleTuning;
+    /// let args = Launcher::new("/opt/chromeleon/chrome")
+    ///     .page_settle_tuning(SettleTuning::new().quiet_window_ms(1500).pierce_shadow(true))
+    ///     .build_args();
+    /// assert!(args.contains(&"--page-settle-quiet-window-ms=1500".to_string()));
+    /// ```
+    pub fn page_settle_tuning(mut self, tuning: crate::settle::SettleTuning) -> Self {
+        self.page_settle = Some(tuning);
+        self
+    }
+
     /// Set one environment variable for the browser process.
     ///
     /// Note that the `PROXY_*` filter applies to these too — see
@@ -331,11 +373,17 @@ impl Launcher {
 
     /// The full argument list, in the order the browser will see it.
     pub fn build_args(&self) -> Vec<String> {
-        launch_args(
+        let args = launch_args(
             self.args.iter().map(String::as_str),
             self.captcha,
             self.captcha_model_path.as_deref(),
-        )
+        );
+        // Merged rather than appended, so a `--page-settle-*` switch the caller
+        // set by hand still wins — the same rule every other flag here follows.
+        match self.page_settle {
+            Some(tuning) => merge_launch_args(args, crate::settle::settle_launch_args(tuning)),
+            None => args,
+        }
     }
 
     /// The full environment the browser will run with.
@@ -549,6 +597,68 @@ mod tests {
             .build_args();
         assert!(args.contains(&"--fingerprint-os=Linux".to_string()));
         assert!(args.contains(&"--fingerprint-seed=42".to_string()));
+    }
+
+    #[test]
+    fn page_settle_is_opt_in_and_never_a_default() {
+        use crate::settle::SettleTuning;
+
+        // It changes what the browser does, so it is not in LAUNCH_ARGS and not
+        // in the args every launch gets.
+        assert!(!LAUNCH_ARGS.contains(&"--page-settle"));
+        assert!(!launch_args::<[&str; 0]>([], false, None)
+            .iter()
+            .any(|a| a.starts_with("--page-settle")));
+        assert!(!Launcher::new("/x")
+            .build_args()
+            .iter()
+            .any(|a| a.starts_with("--page-settle")));
+
+        let tuned = Launcher::new("/x")
+            .page_settle_tuning(
+                SettleTuning::new()
+                    .quiet_window_ms(1500)
+                    .min_chars(64)
+                    .timeout_ms(20_000)
+                    .sample_interval_ms(100)
+                    .pierce_shadow(true),
+            )
+            .build_args();
+        for expected in [
+            "--page-settle",
+            "--page-settle-quiet-window-ms=1500",
+            "--page-settle-min-chars=64",
+            "--page-settle-timeout-ms=20000",
+            "--page-settle-sample-interval-ms=100",
+            "--page-settle-pierce-shadow",
+        ] {
+            assert!(
+                tuned.contains(&expected.to_string()),
+                "{expected} missing: {tuned:?}"
+            );
+        }
+
+        // A tuning switch the caller set themselves is not duplicated or
+        // overridden, exactly like the WebRTC policy.
+        let by_hand = Launcher::new("/x")
+            .arg("--page-settle-quiet-window-ms=250")
+            .page_settle_tuning(SettleTuning::new().quiet_window_ms(1500))
+            .build_args();
+        assert!(by_hand.contains(&"--page-settle-quiet-window-ms=250".to_string()));
+        assert_eq!(
+            by_hand
+                .iter()
+                .filter(|a| a.starts_with("--page-settle-quiet-window-ms"))
+                .count(),
+            1
+        );
+        // …and page_settle(false) takes the whole thing back off.
+        assert!(!Launcher::new("/x")
+            .page_settle(true)
+            .page_settle(false)
+            .build_args()
+            .iter()
+            .any(|a| a.starts_with("--page-settle")));
     }
 
     #[test]
