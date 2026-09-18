@@ -28,7 +28,7 @@ permissions:
 jobs:
   build:
     name: Build distributions
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -86,7 +86,7 @@ jobs:
   publish:
     name: Publish to PyPI
     needs: build
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     timeout-minutes: 10
     # Separate job on purpose. id-token: write is what PyPI trusts; keeping it
     # off the build job means the OIDC token is never exposed to arbitrary code

@@ -5,7 +5,7 @@ on: [push, pull_request]
 # others — nothing here is shared at build time.
 jobs:
   python:
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: python
@@ -25,7 +25,7 @@ jobs:
       - run: python -m build
 
   node:
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: node
@@ -76,7 +76,7 @@ jobs:
           node -e "require('chromeleon/package.json')"
 
   rust:
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: rust
@@ -124,7 +124,7 @@ jobs:
 
   conformance:
     # The anti-drift job: one corpus, every client, compared in one place.
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
