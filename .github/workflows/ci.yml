@@ -5,7 +5,9 @@ on: [push, pull_request]
 # others — nothing here is shared at build time.
 jobs:
   python:
-    runs-on: ubuntu-latest
+    # ubuntu-latest is 26.04, which has no Python 3.9 for setup-python; keep
+    # testing the oldest supported version on the image that still has it.
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: python
