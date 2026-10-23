@@ -11,7 +11,8 @@ Playwright:
 
     with sync_playwright() as p:
         browser = p.chromium.launch(executable_path=CHROMELEON,
-                                    args=list(LAUNCH_ARGS))
+                                    args=list(LAUNCH_ARGS),
+                                    chromium_sandbox=True)
         context = new_proxy_context(browser, "http://user:pass@gateway:12321")
         page = context.new_page()
 

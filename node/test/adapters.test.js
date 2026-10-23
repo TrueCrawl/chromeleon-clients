@@ -99,3 +99,17 @@ test('launch suppresses Playwright default args, and the caller can override', a
   assert.deepEqual(calls[3].ignoreDefaultArgs, [...SUPPRESSED_DEFAULT_ARGS],
     'unrelated options must not disturb the default');
 });
+
+test('launch keeps Chromium\'s OS sandbox on unless the caller opts out', async () => {
+  const { launch } = require('../src/adapters');
+  const calls = [];
+  const chromium = { async launch(options) { calls.push(options); return {}; } };
+
+  // Playwright adds --no-sandbox when chromiumSandbox is unset.
+  await launch(chromium, '/bin/chrome');
+  assert.equal(calls[0].chromiumSandbox, true);
+  assert.ok(!calls[0].args.includes('--no-sandbox'));
+
+  await launch(chromium, '/bin/chrome', { chromiumSandbox: false });
+  assert.equal(calls[1].chromiumSandbox, false, 'an explicit choice must win');
+});

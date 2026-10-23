@@ -45,3 +45,17 @@ def test_explicit_empty_ignore_default_args_is_honoured() -> None:
     chromium = _FakeChromium()
     launch(chromium, "/bin/chrome", ignore_default_args=[])
     assert chromium.calls[0]["ignore_default_args"] == []
+
+
+def test_launch_keeps_chromium_os_sandbox_on() -> None:
+    """Playwright adds --no-sandbox unless chromium_sandbox is set."""
+    chromium = _FakeChromium()
+    launch(chromium, "/bin/chrome")
+    assert chromium.calls[0]["chromium_sandbox"] is True
+    assert "--no-sandbox" not in chromium.calls[0]["args"]
+
+
+def test_explicit_chromium_sandbox_choice_wins() -> None:
+    chromium = _FakeChromium()
+    launch(chromium, "/bin/chrome", chromium_sandbox=False)
+    assert chromium.calls[0]["chromium_sandbox"] is False

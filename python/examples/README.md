@@ -356,6 +356,7 @@ async with async_playwright() as p:
     # REQUIRED: disable_non_proxied_udp prevents WebRTC from leaking the real
     # IP when per-context proxies are used. See "WebRTC and Proxies" above.
     browser = await p.chromium.launch(
+        chromium_sandbox=True,
         executable_path="./chrome",
         args=["--webrtc-ip-handling-policy=disable_non_proxied_udp"],
     )
@@ -384,6 +385,7 @@ from playwright.sync_api import sync_playwright
 
 with sync_playwright() as p:
     browser = p.chromium.launch(
+        chromium_sandbox=True,
         executable_path="./chrome",
         args=["--webrtc-ip-handling-policy=disable_non_proxied_udp"],
     )
@@ -417,6 +419,7 @@ function normalizeProxyServer(server) {
 }
 
 const browser = await chromium.launch({
+    chromiumSandbox: true,
     executablePath: './chrome',
     args: ['--webrtc-ip-handling-policy=disable_non_proxied_udp'],
 });
@@ -491,7 +494,7 @@ cd chromeleon-linux
 docker build -t chromeleon .
 
 # 3. Run it
-docker run -d --name chromeleon -p 9222:9222 \
+docker run -d --security-opt seccomp=./chromium-seccomp.json --name chromeleon -p 9222:9222 \
   --restart unless-stopped \
   --memory 2g \
   chromeleon
@@ -643,6 +646,7 @@ did not ask for — `en-US`, or any other country — even with a Japanese proxy
    ```python
    # For per-context geo-targeted fingerprints:
    browser = p.chromium.launch(
+       chromium_sandbox=True,
        executable_path="./chrome",
        args=["--webrtc-ip-handling-policy=disable_non_proxied_udp"],  # required
    )
@@ -730,7 +734,7 @@ python vnc_example.py --cdp-url http://localhost:9222
 
 ```bash
 # Expose both CDP and VNC ports
-docker run -d --name chromeleon -p 9222:9222 -p 5900:5900 \
+docker run -d --security-opt seccomp=./chromium-seccomp.json --name chromeleon -p 9222:9222 -p 5900:5900 \
   chromeleon --ozone-platform=vnc --vnc-port=5900 --remote-debugging-port=9222
 
 # Connect VNC viewer to localhost:5900 to see the browser

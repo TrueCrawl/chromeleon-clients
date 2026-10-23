@@ -116,6 +116,7 @@ def main():
 
     with sync_playwright() as p:
         browser = p.chromium.launch(
+            chromium_sandbox=True,
             executable_path=chromeleon_path,
             args=launch_args,
             headless=args.headless,

@@ -13,6 +13,14 @@ This guide is for the prebuilt Linux tarball
 want to build Chromeleon from source, see the project's [README.md](README.md)
 and the `build/` docs in the source repository.
 
+Chromium’s sandbox is enabled by default. Run as a non-root user with working
+user namespaces, and explicitly enable the sandbox when launching through
+Playwright. On hosts that restrict unprivileged user namespaces (Ubuntu 23.10
+and later), give the browser binary an AppArmor profile that allows `userns`.
+Docker's default seccomp profile blocks the namespaces Chromium needs; the
+browser package ships `chromium-seccomp.json`, which is Docker's default plus
+those permissions, and the Docker examples below use it.
+
 > **TL;DR**
 > ```bash
 > tar xzf Chromeleon-149.0.7827.53.4-lin.x86_64.tar.gz && cd chromeleon-linux
@@ -102,10 +110,10 @@ docker build -t chromeleon .
 
 # Headless (default): entrypoint runs Chrome on internal :9223 and socat-forwards
 # it to 0.0.0.0:9222 so it's reachable from the host.
-docker run -d --name chromeleon -p 9222:9222 chromeleon
+docker run -d --security-opt seccomp=./chromium-seccomp.json --name chromeleon -p 9222:9222 chromeleon
 
 # With a VNC live view
-docker run -d --name chromeleon -p 9222:9222 -p 5900:5900 \
+docker run -d --security-opt seccomp=./chromium-seccomp.json --name chromeleon -p 9222:9222 -p 5900:5900 \
   chromeleon --ozone-platform=vnc --vnc-port=5900
 ```
 
@@ -128,7 +136,7 @@ CDP**: launch the browser once, attach many client sessions to it.
 
 ```bash
 # Chromeleon must be running with CDP exposed, e.g.:
-docker run -d -p 9222:9222 chromeleon
+docker run -d --security-opt seccomp=./chromium-seccomp.json -p 9222:9222 chromeleon
 ```
 
 ```python
@@ -169,6 +177,7 @@ launch_args.append("--fingerprint-os=Windows")
 
 async with async_playwright() as p:
     browser = await p.chromium.launch(
+        chromium_sandbox=True,
         executable_path="./chrome",
         args=launch_args,
         headless=True,
@@ -187,6 +196,7 @@ const launchArgs = [
     '--fingerprint-os=Windows',
 ];
 const browser = await chromium.launch({
+    chromiumSandbox: true,
     executablePath: './chrome',
     args: launchArgs,
     headless: true,
@@ -261,10 +271,10 @@ in real time via any VNC viewer while still controlling it over CDP:
 # Local binary: VNC on 5900, CDP on 9222
 ./chrome --ozone-platform=vnc --vnc-port=5900 \
          --remote-debugging-port=9222 --remote-allow-origins='*' \
-         --no-sandbox --disable-gpu about:blank
+         --disable-gpu about:blank
 
 # Docker: publish both ports
-docker run -d -p 9222:9222 -p 5900:5900 chromeleon \
+docker run -d --security-opt seccomp=./chromium-seccomp.json -p 9222:9222 -p 5900:5900 chromeleon \
     --ozone-platform=vnc --vnc-port=5900 --remote-debugging-port=9222
 
 # Then connect any VNC viewer:
@@ -406,6 +416,7 @@ from playwright.async_api import async_playwright
 async with async_playwright() as p:
     # REQUIRED whenever a proxy is used (see above).
     browser = await p.chromium.launch(
+        chromium_sandbox=True,
         executable_path="./chrome",
         args=["--webrtc-ip-handling-policy=disable_non_proxied_udp"],
     )

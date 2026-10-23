@@ -100,6 +100,9 @@ async function launch(chromium, executablePath, options = {}) {
     executablePath,
     args: _mergeLaunchArgs(args, extra),
     env: browserProcessEnv(env),
+    // Playwright disables Chromium's OS sandbox unless asked, by adding
+    // --no-sandbox. Chromeleon runs sandboxed; the caller can still override.
+    chromiumSandbox: true,
     // Caller's explicit value wins, ours is only a default -- the same contract
     // python states with `launch_options.setdefault(...)`. Previously this relied
     // on `...launchOptions` being spread AFTER the property, which happened to
