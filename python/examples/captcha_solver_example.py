@@ -146,7 +146,7 @@ async def main():
     headless = not args.no_headless
 
     # Build Chrome launch args
-    chrome_args = ["--captcha-solver", "--no-sandbox"]
+    chrome_args = ["--captcha-solver"]
     if args.model_path:
         chrome_args.append(f"--captcha-model-path={args.model_path}")
     if args.proxy:
@@ -163,6 +163,7 @@ async def main():
 
     async with async_playwright() as p:
         browser = await p.chromium.launch(
+            chromium_sandbox=True,
             executable_path=args.chromeleon_path,
             headless=headless,
             args=chrome_args,

@@ -130,6 +130,7 @@ async def main():
 
     async with async_playwright() as p:
         browser = await p.chromium.launch(
+            chromium_sandbox=True,
             executable_path=chromeleon_path,
             args=launch_args,
             headless=args.headless,

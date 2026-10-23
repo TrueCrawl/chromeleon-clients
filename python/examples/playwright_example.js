@@ -161,6 +161,7 @@ async function main() {
     console.log(`Fingerprint OS: ${args.fingerprintOs || 'default'}`);
 
     const browser = await chromium.launch({
+      chromiumSandbox: true,
         executablePath: chromeleonPath,
         args: launchArgs,
         headless: args.headless,

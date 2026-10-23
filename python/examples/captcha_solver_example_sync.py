@@ -48,7 +48,7 @@ def main():
                         help="Proxy URL (http://user:pass@host:port)")
     args = parser.parse_args()
 
-    chrome_args = ["--captcha-solver", "--no-sandbox"]
+    chrome_args = ["--captcha-solver"]
     if args.model_path:
         chrome_args.append(f"--captcha-model-path={args.model_path}")
     if args.proxy:
@@ -57,6 +57,7 @@ def main():
 
     with sync_playwright() as p:
         browser = p.chromium.launch(
+            chromium_sandbox=True,
             executable_path=args.chromeleon_path,
             headless=True,
             args=chrome_args,

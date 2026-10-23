@@ -64,7 +64,6 @@ async def main(
                 f"--ozone-platform=vnc",
                 f"--vnc-port={vnc_port}",
                 f"--remote-debugging-port={cdp_port}",
-                "--no-sandbox",
                 "--disable-gpu",
                 "about:blank",
             ]

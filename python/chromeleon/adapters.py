@@ -54,9 +54,10 @@ def launch(chromium: Any, executable_path: str, *,
     no way to know: LAUNCH_ARGS merged in (unless you already set that policy),
     SUPPRESSED_DEFAULT_ARGS passed as ``ignore_default_args`` so Playwright's own
     Google-services switches are not added, and the controller's PROXY_*
-    variables stripped from the browser environment. Every other keyword is
-    passed straight through, and passing ``ignore_default_args`` yourself
-    replaces the default list entirely.
+    variables stripped from the browser environment. Chromium's OS sandbox
+    stays on (``chromium_sandbox=True``), because Playwright otherwise adds
+    ``--no-sandbox``. Every other keyword is passed straight through, and
+    passing ``ignore_default_args`` yourself replaces the default list entirely.
 
     ``captcha=True`` turns on the built-in reCAPTCHA/hCaptcha solver, which then
     solves challenges automatically; observe it over CDP with
@@ -85,6 +86,9 @@ def launch(chromium: Any, executable_path: str, *,
         if not any(a.split("=", 1)[0] == switch for a in merged):
             merged.append(flag)
     launch_options.setdefault("ignore_default_args", list(SUPPRESSED_DEFAULT_ARGS))
+    # Playwright disables Chromium's OS sandbox unless asked, by adding
+    # --no-sandbox. Chromeleon runs sandboxed; keep it on by default.
+    launch_options.setdefault("chromium_sandbox", True)
     return chromium.launch(executable_path=executable_path, args=merged,
                            env=browser_process_env(env), **launch_options)
 
